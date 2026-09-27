@@ -280,16 +280,27 @@ function makeCitation(
   };
 }
 
+function isColumnHeader(line: string): boolean {
+  const normalized = normalizeForMatch(line).replace(/\s+/g, ' ');
+  return normalized === 'citation' || normalized === 'procede' || normalized === 'interpretation';
+}
+
 function isCitationStart(line: string, parsed: ReturnType<typeof parseCitationLine>): boolean {
   const trimmed = line.trim();
   // Quoted rows may have no procedé or interpretation (the last rows in a
   // pasted table are a common example), so they are always row starts.
-  return /^[«"]/.test(trimmed) || Boolean(parsed.procede) || /^les\s+tirets\b/i.test(trimmed);
+  return /^[«"]/.test(trimmed)
+    || /^les\s+tirets\b/i.test(trimmed)
+    || /^tout\s+(?:le|la|les)\b/i.test(trimmed)
+    || /^2(?:e|ème|eme)\s+quatrain\b/i.test(trimmed)
+    || /^deux\s+derniers\s+vers\b/i.test(trimmed)
+    || /^quand\s+/i.test(trimmed);
 }
 
 function parseCitationsInBlock(blockText: string, movementId: string): CitationItem[] {
   const citations: CitationItem[] = [];
   let pending: ReturnType<typeof parseCitationLine> | null = null;
+  let hasStarted = false;
 
   const flush = () => {
     if (pending?.quote) {
@@ -308,16 +319,60 @@ function parseCitationsInBlock(blockText: string, movementId: string): CitationI
 
   for (const rawLine of blockText.split(/\r?\n/)) {
     const line = cleanSpaces(rawLine);
-    if (!line) continue;
-    if (/^citation\s+proc[eé]d[eé]\s+interpr[eé]tation/i.test(line)) continue;
+    if (!line || isColumnHeader(line)) continue;
 
     const parsed = parseCitationLine(line);
-    if (isCitationStart(line, parsed)) {
-      flush();
+    const startsCitation = isCitationStart(line, parsed);
+
+    if (!hasStarted) {
+      // Ignore the repeated movement heading and any introductory text before
+      // the first actual citation.
+      if (!startsCitation) continue;
+      hasStarted = true;
       pending = parsed;
-    } else if (pending) {
-      // Wrapped lines are continuation text for the current interpretation.
-      pending.interpretation = `${pending.interpretation} ${line}`.trim();
+      continue;
+    }
+
+    if (!pending) {
+      pending = parsed;
+      continue;
+    }
+
+    if (pending.procede && pending.interpretation) {
+      if (startsCitation) {
+        flush();
+        pending = parsed;
+      } else {
+        // Long interpretations are often wrapped over several lines.
+        pending.interpretation = `${pending.interpretation} ${line}`.trim();
+      }
+      continue;
+    }
+
+    if (!pending.procede) {
+      if (startsCitation && !parsed.procede && !parsed.quote) {
+        // A malformed/unsupported procedure line is still more likely to be
+        // a procedure than a new citation in the vertical table format.
+        pending.procede = line;
+      } else if (parsed.procede && !parsed.quote) {
+        // Word/Google Docs often pastes each table cell on its own line.
+        // Preserve the complete cell instead of requiring a fixed vocabulary.
+        // Any text after a recognized word is part of the procedure cell here;
+        // the following line is the separate interpretation cell.
+        pending.procede = line;
+        pending.interpretation = '';
+      } else if (startsCitation) {
+        flush();
+        pending = parsed;
+      } else {
+        pending.procede = line;
+      }
+      continue;
+    }
+
+    if (!pending.interpretation) {
+      // This is the interpretation cell in the vertical table layout.
+      pending.interpretation = line;
     }
   }
 
@@ -325,41 +380,65 @@ function parseCitationsInBlock(blockText: string, movementId: string): CitationI
   return citations;
 }
 
+function stripMovementMarker(line: string): string {
+  return line.replace(/^[IVXLC]+\)\s*/, '').trim();
+}
+
+function parseMovementBlock(lines: string[], title: string, index: number): Movement | null {
+  const movementId = `movement-${index + 1}`;
+  const citations = parseCitationsInBlock(lines.join('\n'), movementId);
+  if (citations.length === 0) return null;
+  return { id: movementId, title, citations };
+}
+
 export function parseStudyText(rawText: string, poemText: string = ''): EtudeLineaire {
   const allLines = trimLines(rawText);
   const title = extractTitle(allLines);
   const meta = extractMeta(allLines);
   const textLines = trimLines(poemText);
-
   const movStartIdx = allLines.findIndex(line => /^mouvements?\s*:/i.test(line));
+
   if (movStartIdx === -1) return makeResult(title, meta, [], textLines);
 
-  const movSection = allLines.slice(movStartIdx).join('\n');
-  const parts = movSection.split(/\n([IVXLC]+)\)\s*/);
+  const sectionLines = allLines.slice(movStartIdx + 1);
+  const outline: string[] = [];
+  let bodyStart = 0;
+
+  // First collect the movement outline. In many pasted documents the actual
+  // analyses appear later under unnumbered headings.
+  while (bodyStart < sectionLines.length) {
+    const match = sectionLines[bodyStart].match(/^[IVXLC]+\)\s*(.+)$/);
+    if (!match) break;
+    outline.push(match[1].trim());
+    bodyStart++;
+  }
+
   const movements: Movement[] = [];
+  const bodyLines = sectionLines.slice(bodyStart);
+  const normalizedBody = bodyLines.map(line => normalizeForMatch(stripMovementMarker(line)));
+  const headingIndexes = outline.map(outlineTitle => {
+    const target = normalizeForMatch(outlineTitle);
+    return normalizedBody.findIndex(line => line === target);
+  });
 
-  for (let i = 1; i < parts.length; i += 2) {
-    const rawContent = (parts[i + 1] || '').trim();
-    if (!rawContent) continue;
-
-    const contentLines = rawContent.split(/\r?\n/).map(cleanSpaces).filter(Boolean);
-    const citationLines = contentLines.filter(line => {
-      if (/^citation\s+proc[eé]d[eé]\s+interpr[eé]tation/i.test(line)) return false;
-      return isCitationStart(line, parseCitationLine(line));
-    });
-    if (citationLines.length === 0) continue;
-
-    const titleLine = contentLines[0] || '';
-    const cleanTitle = titleLine.replace(/^[IVXLC]+\)\s*/, '').trim();
-    const movementId = `movement-${movements.length + 1}`;
-    const citations = parseCitationsInBlock(rawContent, movementId);
-
-    if (citations.length === 0) continue;
-    movements.push({
-      id: movementId,
-      title: cleanTitle || `Partie ${movements.length + 1}`,
-      citations,
-    });
+  if (outline.length > 0 && headingIndexes.every(index => index >= 0)) {
+    for (let i = 0; i < headingIndexes.length; i++) {
+      const start = headingIndexes[i];
+      const end = headingIndexes[i + 1] ?? bodyLines.length;
+      const movement = parseMovementBlock(bodyLines.slice(start, end), outline[i], i);
+      if (movement) movements.push(movement);
+    }
+  } else {
+    // Fallback for documents whose body headings are numbered themselves.
+    const fallbackSection = sectionLines.join('\n');
+    const parts = fallbackSection.split(/\n([IVXLC]+)\)\s*/);
+    for (let i = 1; i < parts.length; i += 2) {
+      const rawContent = (parts[i + 1] || '').trim();
+      if (!rawContent) continue;
+      const cleanTitle = stripMovementMarker(rawContent.split(/\r?\n/)[0] || '') || `Partie ${movements.length + 1}`;
+      const movement = parseMovementBlock(rawContent.split(/\r?\n/), cleanTitle, movements.length);
+      if (movement) movements.push(movement);
+    }
   }
 
   return makeResult(title, meta, movements, textLines);
