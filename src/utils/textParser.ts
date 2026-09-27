@@ -1,7 +1,24 @@
 import { EtudeLineaire, Movement, CitationItem } from '../types/etude';
 
+function cleanSpaces(text: string): string {
+  return text.replace(/ /g, ' ').trim();
+}
+
 function trimLines(text: string): string[] {
-  return text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+  return text
+    .split(/\r?\n/)
+    .map(line => cleanSpaces(line))
+    .filter(line => line.length > 0);
+}
+
+function normalizeForMatch(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[’‘`]/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function extractTitle(rawLines: string[]): string {
@@ -11,77 +28,236 @@ function extractTitle(rawLines: string[]): string {
 
 function extractMeta(rawLines: string[]) {
   const result = { quoi: '', comment: '', pourQuoi: '', problematic: '' };
-  const pattern = /^([Qq]uoi|[Cc]omment|[Pp]our quoi|[Pp]robl[eé]matique)\s*[:–—]?\s*(.*)/;
+  const pattern = /^\s*(Quoi|Comment|Pour\s+quoi|Probl[eé]matique)\s*\??\s*[:–—-]?\s*(.*)$/i;
+
   for (const line of rawLines) {
-    const m = line.match(pattern);
-    if (!m) break;
-    const key = m[1].toLowerCase();
-    const val = m[2].trim();
-    if (key.startsWith('quoi')) result.quoi = val;
-    else if (key.startsWith('comment')) result.comment = val;
-    else if (key.startsWith('pour')) result.pourQuoi = val;
-    else if (key.startsWith('prob')) result.problematic = val;
+    const match = line.match(pattern);
+    if (!match) continue;
+
+    const key = normalizeForMatch(match[1]);
+    const value = match[2].trim();
+    if (key === 'quoi') result.quoi = value;
+    else if (key === 'comment') result.comment = value;
+    else if (key.startsWith('pour')) result.pourQuoi = value;
+    else if (key.startsWith('problem')) result.problematic = value;
   }
+
   return result;
 }
 
-function parseCitationsInBlock(
-  blockText: string,
-  movementId: string
-): CitationItem[] {
-  const citations: CitationItem[] = [];
-  const blockLines = trimLines(blockText);
+/**
+ * These labels cover the way procédés are usually written in school notes.
+ * They are deliberately ordered by length so a compound label is preferred
+ * over a shorter word contained inside it (for example "Marque du dialogue"
+ * before "dialogue").
+ */
+const PROCEDURE_MARKERS = [
+  "présentatif + présent de l'indicatif",
+  'presentatif + present de l indicatif',
+  'deuxième personne du singulier',
+  'deuxieme personne du singulier',
+  'adjectifs qualificatifs',
+  'référence mythologique',
+  'reference mythologique',
+  'marque du dialogue',
+  'allitération en [v]',
+  'alliteration en [v]',
+  'allitération en [f]',
+  'alliteration en [f]',
+  'rime suffisante',
+  'à la rime riche',
+  'a la rime riche',
+  'contre-rejets',
+  'contre-rejet',
+  'personnifications',
+  'personnification',
+  'personifications',
+  'personification',
+  'synesthésie',
+  'synesthesie',
+  'énumération',
+  'enumeration',
+  'ennumération',
+  'ennumeration',
+  'polyptote',
+  'comparaison',
+  'conditionnel',
+  'anaphore',
+  'antithèse',
+  'antithese',
+  'apostrophe',
+  'métaphores',
+  'metaphores',
+  'métaphore',
+  'metaphore',
+  'redondance',
+  'dialogue',
+  'allitération',
+  'alliteration',
+  'présentatif',
+  'presentatif',
+  'gn',
+].sort((a, b) => normalizeForMatch(b).length - normalizeForMatch(a).length);
 
-  let pendingQuote = '';
-  let pendingQuotes: string[] = [];
-  let pendingVerses: number[] = [];
-  let pendingProcede = '';
-  let pendingInterpr = '';
-  let rowStarted = false;
+function isWordBoundary(text: string, start: number, end: number): boolean {
+  const isWord = (char: string | undefined) => Boolean(char && /[\p{L}\p{N}]/u.test(char));
+  return !isWord(text[start - 1]) && !isWord(text[end]);
+}
 
-  for (const line of blockLines) {
-    // Skip the movement title line
-    if (/^[IVXLC]+\)\s/.test(line)) continue;
+function normalizedWithMap(source: string): { text: string; map: number[] } {
+  let text = '';
+  const map: number[] = [];
+  let lastWasSpace = false;
 
-    // Empty line → flush and reset
-    if (line === '') {
-      if (rowStarted && pendingQuote) {
-        citations.push(makeCitation(pendingQuote, pendingQuotes, pendingProcede, pendingInterpr, pendingVerses, movementId, citations.length));
+  for (let index = 0; index < source.length; index++) {
+    const original = source[index];
+    if (/\s/.test(original)) {
+      if (text && !lastWasSpace) {
+        text += ' ';
+        map.push(index);
       }
-      pendingQuote = pendingProcede = pendingInterpr = '';
-      pendingQuotes = [];
-      pendingVerses = [];
-      rowStarted = false;
+      lastWasSpace = true;
       continue;
     }
 
-    // Does this look like a citation line? (starts with a quote mark)
-    if (/^[«"']/.test(line)) {
-      if (rowStarted && pendingQuote) {
-        citations.push(makeCitation(pendingQuote, pendingQuotes, pendingProcede, pendingInterpr, pendingVerses, movementId, citations.length));
+    const normalized = original
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[’‘`]/g, "'");
+    for (const character of normalized) {
+      text += character;
+      map.push(index);
+    }
+    lastWasSpace = false;
+  }
+
+  while (text.endsWith(' ')) {
+    text = text.slice(0, -1);
+    map.pop();
+  }
+
+  return { text, map };
+}
+
+function findProcedure(line: string, searchFrom = 0): { start: number; end: number } | null {
+  const normalized = normalizedWithMap(line);
+  let best: { start: number; end: number } | null = null;
+  const minimumIndex = normalized.map.findIndex(index => index >= searchFrom);
+  const fromIndex = minimumIndex === -1 ? normalized.text.length : minimumIndex;
+
+  for (const marker of PROCEDURE_MARKERS) {
+    const normalizedMarker = normalizedWithMap(marker).text;
+    let from = fromIndex;
+    while (from < normalized.text.length) {
+      const found = normalized.text.indexOf(normalizedMarker, from);
+      if (found === -1) break;
+      const end = found + normalizedMarker.length;
+      const needsBoundary = normalizedMarker.length <= 3;
+      if (!needsBoundary || isWordBoundary(normalized.text, found, end)) {
+        const startOriginal = normalized.map[found];
+        const lastOriginal = normalized.map[end - 1];
+        const candidate = { start: startOriginal, end: lastOriginal + 1 };
+        if (!best || candidate.start < best.start || (candidate.start === best.start && candidate.end > best.end)) {
+          best = candidate;
+        }
+        break;
       }
-      const parsed = parseCitationLine(line);
-      pendingQuote = parsed.quote;
-      pendingQuotes = parsed.quotes;
-      pendingVerses = parsed.verses;
-      pendingProcede = parsed.procede;
-      pendingInterpr = parsed.interpretation;
-      rowStarted = true;
-    } else if (rowStarted) {
-      // Continuation of current row — it's the interpretation
-      pendingInterpr += (pendingInterpr ? ' ' : '') + line;
-    } else {
-      // Orphan line before any quote — treat as interpretation continuation
-      pendingInterpr += (pendingInterpr ? ' ' : '') + line;
-      rowStarted = true;
+      from = found + 1;
     }
   }
 
-  if (rowStarted && pendingQuote) {
-    citations.push(makeCitation(pendingQuote, pendingQuotes, pendingProcede, pendingInterpr, pendingVerses, movementId, citations.length));
+  return best;
+}
+
+function extractVerses(line: string): number[] {
+  const verses: number[] = [];
+  const versePattern = /\(\s*(?:v|vers|verset)\s*\.?\s*(\d+)(?:\s*[-–—]\s*(\d+))?\s*\)/gi;
+
+  for (const match of line.matchAll(versePattern)) {
+    const start = parseInt(match[1], 10);
+    const end = match[2] ? parseInt(match[2], 10) : start;
+    for (let verse = start; verse <= end; verse++) {
+      if (!verses.includes(verse)) verses.push(verse);
+    }
   }
 
-  return citations;
+  return verses;
+}
+
+function stripVerseReferences(text: string): string {
+  return text.replace(/\s*\(\s*(?:v|vers|verset)\s*\.?\s*\d+(?:\s*[-–—]\s*\d+)?\s*\)\s*/gi, ' ');
+}
+
+function extractQuotedParts(text: string): string[] {
+  return Array.from(text.matchAll(/[«"]([^»"]+)[»"]/g), match => match[1].trim()).filter(Boolean);
+}
+
+function cleanQuote(text: string): string {
+  return stripVerseReferences(text)
+    .replace(/[\t]+/g, ' ')
+    .replace(/^[\s/,:;–—-]+|[\s/,:;–—-]+$/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function parseCitationLine(line: string): {
+  quote: string;
+  quotes: string[];
+  verses: number[];
+  procede: string;
+  interpretation: string;
+} {
+  const source = cleanSpaces(line);
+  const verses = extractVerses(source);
+  const quotedParts = extractQuotedParts(source);
+  const withoutVerses = stripVerseReferences(source);
+
+  let quote = '';
+  let procede = '';
+  let interpretation = '';
+
+  // Pasting from a spreadsheet/Word table may retain tabs or wide spaces.
+  // Prefer those columns when they are available and non-empty.
+  const tabParts = source.split('\t').map(part => part.trim());
+  const wideParts = withoutVerses.split(/\s{2,}/).map(part => part.trim()).filter(Boolean);
+  const columnParts = tabParts.length >= 2 ? tabParts : wideParts;
+
+  if (columnParts.length >= 2) {
+    quote = cleanQuote(columnParts[0]);
+    procede = columnParts[1].replace(/[\s:–—-]+$/, '').trim();
+    interpretation = columnParts.slice(2).join(' ').trim();
+  } else {
+    const quoteEnd = quotedParts.length > 0
+      ? withoutVerses.lastIndexOf('»') + 1
+      : 0;
+    const procedure = findProcedure(withoutVerses, Math.max(0, quoteEnd));
+
+    if (procedure) {
+      const before = withoutVerses.slice(0, procedure.start);
+      const after = withoutVerses.slice(procedure.end);
+      quote = cleanQuote(before);
+      // Keep the original source text for the label, including accents.
+      procede = withoutVerses.slice(procedure.start, procedure.end).trim();
+      interpretation = after.replace(/^[\s:–—-]+/, '').trim();
+    } else {
+      quote = cleanQuote(withoutVerses);
+    }
+  }
+
+  // Quoted text is the most reliable citation value, including rows with
+  // several quoted fragments separated by slashes.
+  if (quotedParts.length > 0) {
+    quote = quotedParts.join(' / ');
+  }
+
+  return {
+    quote,
+    quotes: quotedParts,
+    verses,
+    procede,
+    interpretation,
+  };
 }
 
 function makeCitation(
@@ -104,131 +280,86 @@ function makeCitation(
   };
 }
 
-function parseCitationLine(line: string): {
-  quote: string;
-  quotes: string[];
-  verses: number[];
-  procede: string;
-  interpretation: string;
-} {
-  const verses: number[] = [];
+function isCitationStart(line: string, parsed: ReturnType<typeof parseCitationLine>): boolean {
+  const trimmed = line.trim();
+  // Quoted rows may have no procedé or interpretation (the last rows in a
+  // pasted table are a common example), so they are always row starts.
+  return /^[«"]/.test(trimmed) || Boolean(parsed.procede) || /^les\s+tirets\b/i.test(trimmed);
+}
 
-  // Extract verse numbers: (v.1), (v.1-3), (vers 5)
-  for (const m of line.matchAll(/\(?\s*(?:v\.?|vers|verset)\s*(\d+)(?:\s*[-–—]\s*(\d+))?\s*\)/gi)) {
-    const start = parseInt(m[1]);
-    const end = m[2] ? parseInt(m[2]) : start;
-    for (let v = start; v <= end; v++) {
-      if (!verses.includes(v)) verses.push(v);
+function parseCitationsInBlock(blockText: string, movementId: string): CitationItem[] {
+  const citations: CitationItem[] = [];
+  let pending: ReturnType<typeof parseCitationLine> | null = null;
+
+  const flush = () => {
+    if (pending?.quote) {
+      citations.push(makeCitation(
+        pending.quote,
+        pending.quotes,
+        pending.procede,
+        pending.interpretation,
+        pending.verses,
+        movementId,
+        citations.length
+      ));
+    }
+    pending = null;
+  };
+
+  for (const rawLine of blockText.split(/\r?\n/)) {
+    const line = cleanSpaces(rawLine);
+    if (!line) continue;
+    if (/^citation\s+proc[eé]d[eé]\s+interpr[eé]tation/i.test(line)) continue;
+
+    const parsed = parseCitationLine(line);
+    if (isCitationStart(line, parsed)) {
+      flush();
+      pending = parsed;
+    } else if (pending) {
+      // Wrapped lines are continuation text for the current interpretation.
+      pending.interpretation = `${pending.interpretation} ${line}`.trim();
     }
   }
 
-  // Strip verse refs and surrounding whitespace, but preserve tabs inside the line
-  const stripped = line.replace(/\s*\([^)]*\)\s*/g, ' ').replace(/\s{2,}/g, '  ').trim();
-
-  let quote = stripped;
-  let procede = '';
-  let interpretation = '';
-
-  // Find interpretation start: look for text after the last verse reference
-  // The interpretation starts after the last ")" from verse refs
-  const lastVerseParen = stripped.search(/\)\s*$/m);
-  let interpStart = stripped.length;
-
-  if (lastVerseParen !== -1) {
-    const afterVerse = stripped.substring(lastVerseParen + 1).trim();
-    if (afterVerse.length > 0) {
-      interpStart = lastVerseParen + 1;
-    }
-  }
-
-  // Split on tab or double-space for the three parts
-  // Format: "quote part  « text » (v.1)  Procede  Interpretation"
-  const tabParts = stripped.split('\t');
-  if (tabParts.length >= 2) {
-    // [0] = quote part (before first tab)
-    // [1] = procede
-    // [2] = interpretation
-    const beforeFirstTab = tabParts[0].trim();
-    // The quote is everything before verse refs, or just before the tab
-    quote = beforeFirstTab.replace(/\s*\([^)]*\)\s*/g, '').trim();
-    procede = (tabParts[1] || '').trim();
-    interpretation = (tabParts[2] || '').trim();
-  } else {
-    // Fallback: split on double-space
-    const spParts = stripped.split(/\s{2,}/);
-    if (spParts.length >= 2) {
-      quote = spParts[0].replace(/\s*\([^)]*\)\s*/g, '').trim();
-      procede = (spParts[1] || '').trim();
-      interpretation = (spParts.slice(2).join('  ')).trim();
-    } else {
-      // Only quote, no procedé detected
-      quote = stripped.replace(/\s*\([^)]*\)\s*/g, '').trim();
-    }
-  }
-
-  // Clean up quote: extract content between « » or " "
-  const extractedQuotes: string[] = [];
-  for (const m of quote.matchAll(/[«"]([^»""]+)[»""]/g)) {
-    extractedQuotes.push(m[1].trim());
-  }
-  if (extractedQuotes.length > 0) {
-    quote = extractedQuotes.join(' / ');
-  }
-
-  return { quote, quotes: extractedQuotes, verses, procede, interpretation };
+  flush();
+  return citations;
 }
 
 export function parseStudyText(rawText: string, poemText: string = ''): EtudeLineaire {
   const allLines = trimLines(rawText);
-
   const title = extractTitle(allLines);
   const meta = extractMeta(allLines);
-
-  // Extract poem lines
   const textLines = trimLines(poemText);
 
-  // Find "Mouvements :" header
-  const movStartIdx = allLines.findIndex(l => /^mouvements?\s*:/i.test(l));
-  if (movStartIdx === -1) {
-    return makeResult(title, meta, [], textLines);
-  }
+  const movStartIdx = allLines.findIndex(line => /^mouvements?\s*:/i.test(line));
+  if (movStartIdx === -1) return makeResult(title, meta, [], textLines);
 
-  // Get everything from "Mouvements :" onward
   const movSection = allLines.slice(movStartIdx).join('\n');
-
-  // Split on Roman numeral markers that appear at the start of a line
-  // Use split() not lookahead — this removes the marker from each part
   const parts = movSection.split(/\n([IVXLC]+)\)\s*/);
-  // parts[0] = "Mouvements :"
-  // parts[1] = numeral, parts[2] = content, parts[3] = numeral, parts[4] = content, ...
-
   const movements: Movement[] = [];
 
-  // Process pairs: parts[i] = numeral, parts[i+1] = content (for i odd)
   for (let i = 1; i < parts.length; i += 2) {
-    const numeral = parts[i] || `M${(i + 1) / 2}`;
     const rawContent = (parts[i + 1] || '').trim();
-
-    // Skip empty blocks (toc entries have no content)
     if (!rawContent) continue;
 
-    const contentLines = trimLines(rawContent);
-
-    // Skip entries that are just a title with no citation lines
-    const quoteLines = contentLines.filter(l => /^[«"']/.test(l));
-    if (quoteLines.length === 0) continue;
+    const contentLines = rawContent.split(/\r?\n/).map(cleanSpaces).filter(Boolean);
+    const citationLines = contentLines.filter(line => {
+      if (/^citation\s+proc[eé]d[eé]\s+interpr[eé]tation/i.test(line)) return false;
+      return isCitationStart(line, parseCitationLine(line));
+    });
+    if (citationLines.length === 0) continue;
 
     const titleLine = contentLines[0] || '';
     const cleanTitle = titleLine.replace(/^[IVXLC]+\)\s*/, '').trim();
-
-    // Skip duplicate titles (repeats in toc)
-    if (movements.some(m => m.title === cleanTitle)) continue;
-
-    const movementTitle = cleanTitle || `Partie ${movements.length + 1}`;
     const movementId = `movement-${movements.length + 1}`;
     const citations = parseCitationsInBlock(rawContent, movementId);
 
-    movements.push({ id: movementId, title: movementTitle, citations });
+    if (citations.length === 0) continue;
+    movements.push({
+      id: movementId,
+      title: cleanTitle || `Partie ${movements.length + 1}`,
+      citations,
+    });
   }
 
   return makeResult(title, meta, movements, textLines);
