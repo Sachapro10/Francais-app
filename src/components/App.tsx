@@ -163,7 +163,7 @@ export default function App({}: {}) {
       {/* Welcome overlay — shown only on first load with a saved study */}
       {showIntro && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm rustic-backdrop"
           onClick={handleContinueSaved}
         >
           <div className="max-w-2xl mx-auto p-8 text-center">
@@ -183,7 +183,7 @@ export default function App({}: {}) {
               </p>
               <button
                 onClick={(e) => { e.stopPropagation(); handleStartNew(); }}
-                className="inline-flex items-center gap-3 px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold cursor-pointer transition-all duration-200 shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 hover:scale-105"
+                className="copper-action inline-flex items-center gap-3 px-8 py-4 text-white rounded-xl font-semibold cursor-pointer transition-all duration-200 hover:scale-[1.02]"
               >
                 <Plus size={20} />
                 Nouvelle analyse
@@ -202,11 +202,11 @@ export default function App({}: {}) {
       )}
 
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-xl border-b border-white/5">
+      <header className="sticky top-0 z-40 wood-rail backdrop-blur-xl border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <button onClick={() => setShowAnalyses(true)} className="flex items-center gap-3 group">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25 group-hover:scale-105 transition-transform">
+              <div className="wood-icon w-9 h-9 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform">
                 <BookOpen size={18} className="text-white" />
               </div>
               <div className="hidden sm:block">
@@ -253,14 +253,14 @@ export default function App({}: {}) {
                 )}
               </div>
 
-              <nav className="flex items-center gap-1 bg-slate-800/60 rounded-2xl p-1">
+              <nav className="wood-nav flex items-center gap-1 rounded-xl p-1">
                 {navItems.map(item => (
                   <button
                     key={item.mode}
                     onClick={() => setView(item.mode)}
-                    className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                    className={`wood-tab flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
                       view === item.mode
-                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25'
+                        ? 'bg-indigo-600 text-white border-b-2 border-amber-500 shadow-none'
                         : 'text-slate-400 hover:text-white hover:bg-white/5'
                     }`}
                   >
@@ -290,8 +290,8 @@ export default function App({}: {}) {
         {/* Analyses switcher modal */}
         {showAnalyses && (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowAnalyses(false)} />
-            <div className="relative w-full sm:max-w-md bg-slate-900 rounded-t-2xl sm:rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
+            <div className="absolute inset-0 bg-[#3b2a21]/20 backdrop-blur-sm" onClick={() => setShowAnalyses(false)} />
+            <div className="relative w-full sm:max-w-md rustic-modal rounded-t-2xl sm:rounded-2xl overflow-hidden">
               <div className="flex items-center justify-between p-4 border-b border-white/5">
                 <h2 className="font-semibold text-white text-base">Mes analyses</h2>
                 <button
@@ -312,7 +312,7 @@ export default function App({}: {}) {
                   <button
                     key={analysis.id}
                     onClick={() => switchAnalysis(analysis)}
-                    className={`w-full flex items-start justify-between gap-3 p-3 rounded-xl transition-all text-left ${
+                    className={`w-full flex items-start justify-between gap-3 p-3 rounded-lg transition-all text-left ${
                       analysis.id === currentId
                         ? 'bg-indigo-600/20 border border-indigo-500/40'
                         : 'bg-slate-800/50 border border-transparent hover:bg-slate-800 hover:border-white/5'
@@ -347,7 +347,7 @@ export default function App({}: {}) {
               <div className="p-3 border-t border-white/5">
                 <button
                   onClick={() => { setShowAnalyses(false); setView('newText'); }}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-medium transition-colors"
+                  className="copper-action w-full flex items-center justify-center gap-2 px-4 py-2.5 text-white rounded-lg text-sm font-medium transition-colors"
                 >
                   <Plus size={16} />
                   Nouvelle analyse

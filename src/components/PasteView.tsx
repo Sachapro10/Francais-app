@@ -110,11 +110,11 @@ export default function PasteView({ onSave, onCancel }: PasteViewProps) {
   const citationCount = preview?.movements.reduce((acc, m) => acc + m.citations.length, 0) ?? 0;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-6 rustic-workbench">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+          <div className="wood-icon w-10 h-10 rounded-lg flex items-center justify-center">
             <Clipboard size={20} className="text-white" />
           </div>
           <div>
@@ -128,7 +128,7 @@ export default function PasteView({ onSave, onCancel }: PasteViewProps) {
       </div>
 
       {/* Poem text box */}
-      <div className="bg-slate-800/30 border border-white/5 rounded-xl p-4 space-y-2">
+      <div className="wood-panel rounded-lg p-4 space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
             <BookOpen size={14} />
@@ -140,7 +140,7 @@ export default function PasteView({ onSave, onCancel }: PasteViewProps) {
           value={poemText}
           onChange={e => setPoemText(e.target.value)}
           placeholder={"C'est un litière où je trouve, par exemple,\nUn vieux bouleau fort beau, de mauvaise grâce…"}
-          className="w-full h-32 bg-slate-900/60 border border-white/6 rounded-xl px-4 py-3 text-sm text-slate-200 font-serif-literary leading-relaxed resize-none focus:outline-none focus:border-indigo-500/40 placeholder-slate-700"
+          className="paper-input w-full h-32 border rounded-lg px-4 py-3 text-sm text-slate-200 font-serif-literary leading-relaxed resize-none focus:outline-none placeholder-slate-700"
         />
         {poemText.trim() && (
           <div className="flex flex-wrap gap-1">
@@ -155,7 +155,7 @@ export default function PasteView({ onSave, onCancel }: PasteViewProps) {
 
       {/* Meta info bar */}
       {preview && (
-        <div className="bg-slate-800/50 rounded-xl p-4 border border-white/5">
+        <div className="wood-panel rounded-lg p-4">
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center">
@@ -201,7 +201,7 @@ export default function PasteView({ onSave, onCancel }: PasteViewProps) {
 
       {/* Error banner */}
       {error && (
-        <div className="bg-red-900/20 border border-red-500/20 rounded-xl p-3 text-sm text-red-300 flex items-start gap-2">
+        <div className="wood-panel border border-red-500/20 rounded-lg p-3 text-sm text-red-300 flex items-start gap-2">
           <RefreshCw size={14} className="mt-0.5 shrink-0" />
           {error}
         </div>
@@ -229,7 +229,7 @@ export default function PasteView({ onSave, onCancel }: PasteViewProps) {
             value={rawText}
             onChange={e => setRawText(e.target.value)}
             placeholder={PLACEHOLDER}
-            className="w-full h-[500px] bg-slate-800/40 border border-white/6 rounded-xl px-4 py-3 text-sm text-slate-200 font-mono leading-relaxed resize-none focus:outline-none focus:border-indigo-500/40 placeholder-slate-700 focus:placeholder-slate-600"
+            className="paper-input w-full h-[500px] border rounded-lg px-4 py-3 text-sm text-slate-200 font-mono leading-relaxed resize-none focus:outline-none placeholder-slate-700 focus:placeholder-slate-600"
             spellCheck={false}
           />
           <div className="flex items-center justify-between">
@@ -247,7 +247,7 @@ export default function PasteView({ onSave, onCancel }: PasteViewProps) {
               <button
                 onClick={handleSave}
                 disabled={!preview || preview.movements.length === 0}
-                className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm rounded-xl font-medium transition-all disabled:cursor-not-allowed"
+                className="copper-action flex items-center gap-1.5 px-4 py-2 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm rounded-lg font-medium transition-all disabled:cursor-not-allowed"
               >
                 <ArrowRight size={14} />
                 Importer cette étude
@@ -269,7 +269,7 @@ export default function PasteView({ onSave, onCancel }: PasteViewProps) {
               )}
             </div>
 
-            <div className="bg-slate-800/30 border border-white/5 rounded-xl overflow-hidden h-[500px] overflow-y-auto">
+            <div className="wood-panel rounded-lg overflow-hidden h-[500px] overflow-y-auto">
               {!preview && !error && (
                 <div className="flex flex-col items-center justify-center h-full text-slate-600">
                   <Clipboard size={32} className="mb-3 opacity-40" />
@@ -397,7 +397,7 @@ export default function PasteView({ onSave, onCancel }: PasteViewProps) {
 
       {/* Procedé palette quick-add */}
       {preview && preview.movements.some(m => m.citations.some(c => !c.procede)) && (
-        <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4">
+        <div className="wood-panel border border-amber-500/20 rounded-lg p-4">
           <p className="text-xs font-medium text-amber-300 mb-2 flex items-center gap-1.5">
             <Wand2 size={12} />
             Procédés les plus courants — cliqué pour les ajouter aux citations vides

@@ -1,12 +1,58 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { EtudeLineaire, CitationItem } from '../types/etude';
 import {
   Layers, Eye, EyeOff, ChevronLeft, ChevronRight,
-  CheckCircle2, RotateCcw, Shuffle
+  CheckCircle2, RotateCcw, Shuffle, Flame
 } from 'lucide-react';
 
 interface FlashcardViewProps {
   etude: EtudeLineaire;
+}
+
+interface StudyStreak {
+  current: number;
+  activeDays: number;
+}
+
+const STREAK_STORAGE_KEY = 'etude-study-streak-v1';
+
+function getDateKey(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function offsetDateKey(days: number): string {
+  const date = new Date();
+  date.setHours(12, 0, 0, 0);
+  date.setDate(date.getDate() + days);
+  return getDateKey(date);
+}
+
+function getStreakSummary(days: string[]): StudyStreak {
+  const uniqueDays = new Set(days);
+  const startOffset = uniqueDays.has(getDateKey()) ? 0 : -1;
+  let current = 0;
+  while (uniqueDays.has(offsetDateKey(startOffset - current))) {
+    current += 1;
+  }
+
+  const activeDays = Array.from({ length: 7 }, (_, index) =>
+    uniqueDays.has(offsetDateKey(-index))
+  ).filter(Boolean).length;
+
+  return { current, activeDays };
+}
+
+function readStreakDays(): string[] {
+  try {
+    const raw = localStorage.getItem(STREAK_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((day): day is string => typeof day === 'string') : [];
+  } catch {
+    return [];
+  }
 }
 
 const PROCEDE_COLORS: Record<string, string> = {
@@ -50,16 +96,41 @@ export default function FlashcardView({ etude }: FlashcardViewProps) {
 
   const [currentIdx, setCurrentIdx] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
+  const [isInterpretationRevealed, setIsInterpretationRevealed] = useState(false);
   const [knownCards, setKnownCards] = useState<Set<string>>(new Set());
+  const [streakDays, setStreakDays] = useState<string[]>(readStreakDays);
 
   const card = cards[currentIdx];
+  const streak = useMemo(() => getStreakSummary(streakDays), [streakDays]);
 
-  const flip = useCallback(() => setIsFlipped(f => !f), []);
+  const recordStudyDay = useCallback(() => {
+    const today = getDateKey();
+    setStreakDays(previous => {
+      if (previous.includes(today)) return previous;
+      const updated = [...previous, today].slice(-366);
+      try {
+        localStorage.setItem(STREAK_STORAGE_KEY, JSON.stringify(updated));
+      } catch {
+        // Continue the session even when browser storage is unavailable.
+      }
+      return updated;
+    });
+  }, []);
+
+  useEffect(() => {
+    recordStudyDay();
+  }, [recordStudyDay]);
+
+  const flip = useCallback(() => {
+    setIsFlipped(flipped => !flipped);
+    setIsInterpretationRevealed(false);
+  }, []);
 
   const next = useCallback(() => {
     if (currentIdx < cards.length - 1) {
       setCurrentIdx(i => i + 1);
       setIsFlipped(false);
+      setIsInterpretationRevealed(false);
     }
   }, [currentIdx, cards.length]);
 
@@ -67,6 +138,7 @@ export default function FlashcardView({ etude }: FlashcardViewProps) {
     if (currentIdx > 0) {
       setCurrentIdx(i => i - 1);
       setIsFlipped(false);
+      setIsInterpretationRevealed(false);
     }
   }, [currentIdx]);
 
@@ -79,6 +151,7 @@ export default function FlashcardView({ etude }: FlashcardViewProps) {
     setCards(shuffled);
     setCurrentIdx(0);
     setIsFlipped(false);
+    setIsInterpretationRevealed(false);
   }, [cards]);
 
   const markKnown = useCallback((known: boolean) => {
@@ -88,8 +161,9 @@ export default function FlashcardView({ etude }: FlashcardViewProps) {
       else if (card) next.delete(card.id);
       return next;
     });
+    recordStudyDay();
     next();
-  }, [card, next]);
+  }, [card, next, recordStudyDay]);
 
   const gradient = card ? getProcedeGradient(card.procede) : 'from-indigo-500 to-purple-600';
   const progressPct = cards.length > 0 ? ((currentIdx + 1) / cards.length) * 100 : 0;
@@ -120,9 +194,34 @@ export default function FlashcardView({ etude }: FlashcardViewProps) {
         <div className={`text-lg font-bold bg-gradient-to-r ${gradient} bg-clip-text text-transparent`}>
           {card?.procede}
         </div>
-        <div className="text-slate-300 leading-relaxed max-w-sm text-sm text-center">
-          {card?.interpretation}
-        </div>
+        {isInterpretationRevealed ? (
+          <div className="max-w-sm space-y-3">
+            <div className="text-slate-300 leading-relaxed text-sm text-center">
+              {card?.interpretation}
+            </div>
+            <button
+              type="button"
+              onClick={event => {
+                event.stopPropagation();
+                setIsInterpretationRevealed(false);
+              }}
+              className="text-xs text-slate-500 hover:text-slate-700 underline underline-offset-2"
+            >
+              Masquer l’interprétation
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={event => {
+              event.stopPropagation();
+              setIsInterpretationRevealed(true);
+            }}
+            className="copper-action px-4 py-2 rounded-lg text-white text-sm font-medium"
+          >
+            Voir l’interprétation
+          </button>
+        )}
       </div>
       <div className="text-center text-slate-500 text-sm flex items-center justify-center gap-2 mt-4">
         <EyeOff size={14} /> Cliquez pour retourner
@@ -135,7 +234,7 @@ export default function FlashcardView({ etude }: FlashcardViewProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+          <div className="wood-icon w-10 h-10 rounded-lg flex items-center justify-center">
             <Layers size={20} className="text-white" />
           </div>
           <div>
@@ -144,6 +243,10 @@ export default function FlashcardView({ etude }: FlashcardViewProps) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-1.5 text-xs text-amber-600 bg-amber-500/10 px-3 py-1.5 rounded-xl" title="Jours d'étude consécutifs">
+            <Flame size={13} />
+            {streak.current} jour{streak.current > 1 ? 's' : ''} · {streak.activeDays}/7 cette semaine
+          </div>
           <button
             onClick={shuffle}
             className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all"
@@ -163,8 +266,8 @@ export default function FlashcardView({ etude }: FlashcardViewProps) {
         <button onClick={prev} disabled={currentIdx === 0} className="p-2 rounded-xl bg-slate-800 disabled:opacity-30 text-slate-400 hover:text-white transition-all">
           <ChevronLeft size={16} />
         </button>
-        <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
-          <div className="h-full bg-indigo-500 rounded-full transition-all duration-300" style={{ width: `${progressPct}%` }} />
+        <div className="wood-progress-track flex-1 h-2 rounded-full overflow-hidden">
+          <div className="wood-progress-fill h-full rounded-full transition-all duration-300" style={{ width: `${progressPct}%` }} />
         </div>
         <span className="text-sm text-slate-500 shrink-0">{currentIdx + 1}/{cards.length}</span>
         <button onClick={next} disabled={currentIdx === cards.length - 1} className="p-2 rounded-xl bg-slate-800 disabled:opacity-30 text-slate-400 hover:text-white transition-all">
@@ -176,11 +279,24 @@ export default function FlashcardView({ etude }: FlashcardViewProps) {
       {card && (
         <div
           onClick={flip}
-          className="relative min-h-[340px] cursor-pointer select-none"
+          className={`flashcard-stage relative min-h-[340px] cursor-pointer select-none ${isFlipped ? 'is-flipped' : ''}`}
+          role="button"
+          tabIndex={0}
+          onKeyDown={event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              flip();
+            }
+          }}
+          aria-label={isFlipped ? 'Retourner la carte pour voir la citation' : 'Retourner la carte pour voir le procédé'}
         >
-          <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${gradient} opacity-10`} />
-          <div className={`relative h-full rounded-2xl border border-white/10 bg-slate-900/80 backdrop-blur overflow-hidden transition-all duration-300 ${isFlipped ? 'shadow-2xl shadow-indigo-500/20' : ''}`}>
-            {!isFlipped ? frontCard : backCard}
+          <div className="flashcard-inner">
+            <div className="flashcard-face flashcard-front wood-panel rounded-lg border border-white/10 overflow-hidden">
+              {frontCard}
+            </div>
+            <div className="flashcard-face flashcard-back wood-panel rounded-lg border border-white/10 overflow-hidden">
+              {backCard}
+            </div>
           </div>
         </div>
       )}
@@ -189,13 +305,13 @@ export default function FlashcardView({ etude }: FlashcardViewProps) {
       <div className="flex items-center gap-3 justify-center">
         <button
           onClick={() => markKnown(false)}
-          className="flex items-center gap-2 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-medium transition-all"
+          className="flex items-center gap-2 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-medium transition-all"
         >
           <RotateCcw size={16} className="text-red-400" /> A revoir
         </button>
         <button
           onClick={() => markKnown(true)}
-          className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-semibold transition-all shadow-lg shadow-emerald-500/20"
+          className="copper-action flex items-center gap-2 px-6 py-3 text-white rounded-lg font-semibold transition-all"
         >
           <CheckCircle2 size={16} /> Maitrisee
         </button>

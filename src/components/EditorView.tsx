@@ -102,10 +102,10 @@ export default function EditorView({ etude, onSave }: EditorViewProps) {
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6 rustic-workbench">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+          <div className="wood-icon w-10 h-10 rounded-lg flex items-center justify-center">
             <Edit3 size={20} className="text-white" />
           </div>
           <div>
@@ -121,7 +121,7 @@ export default function EditorView({ etude, onSave }: EditorViewProps) {
           )}
           <button
             onClick={save}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium transition-all shadow-lg shadow-indigo-500/20"
+            className="copper-action flex items-center gap-2 px-4 py-2 text-white rounded-lg font-medium transition-all"
           >
             <Save size={16} /> Enregistrer
           </button>
@@ -129,13 +129,13 @@ export default function EditorView({ etude, onSave }: EditorViewProps) {
       </div>
 
       {/* Meta fields */}
-      <div className="bg-slate-900/60 border border-white/8 rounded-2xl p-5 space-y-4">
+      <div className="wood-panel rounded-lg p-5 space-y-4">
         <div>
           <label className="block text-xs uppercase tracking-wider text-slate-500 mb-1.5 font-semibold">Titre de l'étude</label>
           <input
             value={local.title}
             onChange={e => updateTitle(e.target.value)}
-            className="w-full bg-slate-800/60 border border-white/8 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500/60 transition-colors"
+            className="paper-input w-full border rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none transition-colors"
           />
         </div>
         <div>
@@ -144,7 +144,7 @@ export default function EditorView({ etude, onSave }: EditorViewProps) {
             value={local.author || ''}
             onChange={e => setLocal(l => ({ ...l, author: e.target.value }))}
             placeholder="Arthur Rimbaud"
-            className="w-full bg-slate-800/60 border border-white/8 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500/60 transition-colors placeholder:text-slate-600"
+            className="paper-input w-full border rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none transition-colors placeholder:text-slate-600"
           />
         </div>
         <div>
@@ -153,7 +153,7 @@ export default function EditorView({ etude, onSave }: EditorViewProps) {
             value={local.textLines.join('\n')}
             onChange={e => updateTextLines(e.target.value)}
             rows={8}
-            className="w-full bg-slate-800/60 border border-white/8 rounded-xl px-4 py-2.5 text-white text-sm font-serif-literary focus:outline-none focus:border-indigo-500/60 transition-colors resize-none"
+            className="paper-input w-full border rounded-lg px-4 py-2.5 text-white text-sm font-serif-literary focus:outline-none transition-colors resize-none"
           />
         </div>
       </div>
@@ -176,7 +176,7 @@ export default function EditorView({ etude, onSave }: EditorViewProps) {
         {local.movements.map(movement => {
           const isExpanded = expandedMovements.has(movement.id);
           return (
-            <div key={movement.id} className="bg-slate-900/40 border border-white/6 rounded-2xl overflow-hidden">
+            <div key={movement.id} className="wood-panel border border-white/6 rounded-lg overflow-hidden">
               <div className="flex items-center gap-3 px-4 py-3 border-b border-white/5">
                 <button onClick={() => toggleMovement(movement.id)} className="text-slate-400 hover:text-white">
                   {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}

@@ -132,7 +132,7 @@ export default function StudyView({ etude }: StudyViewProps) {
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
       {/* Left: Text panel */}
       <div className="lg:col-span-3 space-y-6">
-        <div className="bg-slate-900/60 border border-white/8 rounded-2xl overflow-hidden">
+        <div className="wood-panel paper-sheet rounded-lg overflow-hidden">
           <div className="px-5 py-4 border-b border-white/5 flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
               <BookOpen size={16} className="text-amber-400" />
@@ -200,7 +200,7 @@ export default function StudyView({ etude }: StudyViewProps) {
 
         {/* Interactive instructions */}
         {activeCitation && (
-          <div className="flex items-center gap-3 px-4 py-3 bg-indigo-950/40 border border-indigo-500/20 rounded-xl text-sm">
+          <div className="wood-panel flex items-center gap-3 px-4 py-3 border border-indigo-500/20 rounded-lg text-sm">
             <MousePointerClick size={16} className="text-indigo-400 shrink-0" />
             <span className="text-indigo-300">
               Cliquez sur un <strong>mot en surbrillance</strong> pour voir son analyse. Sélectionnez une citation dans le panneau de droite.
@@ -224,10 +224,10 @@ export default function StudyView({ etude }: StudyViewProps) {
         {etude.movements.map(movement => {
           const isExpanded = expandedMovements.has(movement.id);
           return (
-            <div key={movement.id} className="bg-slate-900/50 border border-white/6 rounded-2xl overflow-hidden">
+            <div key={movement.id} className="wood-panel border border-white/6 rounded-sm overflow-hidden">
               <button
                 onClick={() => toggleMovement(movement.id)}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/3 transition-colors"
+                className="wood-rail w-full flex items-center gap-3 px-4 py-3 hover:bg-white/3 transition-colors"
               >
                 <div className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all ${
                   isExpanded ? 'bg-indigo-600 rotate-0' : 'bg-slate-700'
@@ -249,7 +249,7 @@ export default function StudyView({ etude }: StudyViewProps) {
                       <button
                         key={citation.id}
                         onClick={() => selectCitation(citation)}
-                        className={`w-full text-left px-4 py-3 border-b border-white/3 last:border-b-0 transition-all duration-150 ${
+                        className={`annotation-slip w-full text-left px-4 py-3 border-b border-white/3 last:border-b-0 transition-all duration-150 ${
                           isActive
                             ? 'bg-indigo-950/50 border-l-2 border-l-indigo-500'
                             : 'hover:bg-white/3'

@@ -193,7 +193,7 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
         </div>
 
         {etude.textLines.length > 0 && (
-          <div className="bg-slate-900/60 border border-white/8 rounded-2xl overflow-hidden">
+          <div className="wood-panel paper-sheet rounded-lg overflow-hidden">
             <div className="px-5 py-3 border-b border-white/5 flex items-center gap-2">
               <BookOpen size={14} className="text-amber-400" />
               <span className="text-sm font-medium text-white">{etude.title}</span>
@@ -259,8 +259,8 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
     <div className="max-w-3xl mx-auto space-y-6">
       {/* Progress bar */}
       <div className="flex items-center gap-4">
-        <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
-          <div className="h-full bg-indigo-500 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
+        <div className="wood-progress-track flex-1 h-2 rounded-full overflow-hidden">
+          <div className="wood-progress-fill h-full rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
         </div>
         <span className="text-sm text-slate-500 shrink-0">{state.currentIdx + 1}/{state.total}</span>
         <div className="flex items-center gap-1 text-sm text-amber-400 shrink-0">
@@ -280,13 +280,13 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
 
       {/* Poem with highlights */}
       {etude.textLines.length === 0 ? (
-        <div className="bg-slate-900/60 border border-white/8 rounded-2xl p-8 text-center">
+        <div className="wood-panel rounded-lg p-8 text-center">
           <BookOpen size={32} className="text-slate-600 mx-auto mb-3" />
           <p className="text-slate-400 text-sm">Aucun texte de poème saisi.</p>
           <p className="text-slate-600 text-xs mt-1">Ajoutez le poème dans « Importer » pour voir les mots en surbrillance ici.</p>
         </div>
       ) : (
-        <div className="bg-slate-900/60 border border-white/8 rounded-2xl overflow-hidden">
+        <div className="wood-panel paper-sheet rounded-lg overflow-hidden">
           <div className="px-5 py-3 border-b border-white/5 flex items-center gap-2">
             <BookOpen size={14} className="text-amber-400" />
             <span className="text-sm font-medium text-white">{etude.title}</span>
@@ -317,7 +317,7 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
       )}
 
       {/* Question card */}
-      <div className={`rounded-2xl border transition-all duration-300 ${state.userAnswered ? (state.isCorrect ? CORRECT_BG : WRONG_BG) : 'bg-slate-900/60 border-white/8'}`}>
+      <div className={`wood-panel rounded-lg border transition-all duration-300 ${state.userAnswered ? (state.isCorrect ? CORRECT_BG : WRONG_BG) : ''}`}>
         <div className="p-5 space-y-4">
           {/* Citation */}
           <div className="flex items-start gap-3">
