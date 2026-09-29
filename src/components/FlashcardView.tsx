@@ -173,7 +173,7 @@ export default function FlashcardView({ etude }: FlashcardViewProps) {
       <div className="text-center space-y-6 flex-1 flex flex-col items-center justify-center">
         <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Procédé à mémoriser</div>
         <div className="text-3xl">[proc]</div>
-        <div className={`text-xl font-bold bg-gradient-to-r ${gradient} bg-clip-text text-transparent`}>
+        <div className="flashcard-procede text-xl font-bold text-[#a95f43]">
           {card?.procede}
         </div>
         {isInterpretationRevealed ? (

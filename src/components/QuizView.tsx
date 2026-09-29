@@ -24,6 +24,7 @@ interface QuizState {
   userAnswered: boolean;
   mode: QuizMode;
   selectedText: string;
+  selectedFragments: string[];
   selectionValidated: boolean;
   selectionError: string;
   matchedCitation: CitationItem | null;
@@ -47,6 +48,26 @@ function normalize(text: string): string {
     .replace(/[̀-ͯ]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function singularize(text: string): string {
+  return normalize(text)
+    .split(' ')
+    .map(word => word.length > 3 && word.endsWith('s') ? word.slice(0, -1) : word)
+    .join(' ');
+}
+
+function procedeMatches(answer: string, stored: string): boolean {
+  const normalizedAnswer = normalize(answer);
+  const normalizedStored = normalize(stored);
+  if (!normalizedAnswer || !normalizedStored) return false;
+  if (normalizedAnswer === normalizedStored) return true;
+  if (normalizedStored.includes(normalizedAnswer) || normalizedAnswer.includes(normalizedStored)) return true;
+  const singularAnswer = singularize(answer);
+  const singularStored = singularize(stored);
+  return singularAnswer === singularStored
+    || singularStored.includes(singularAnswer)
+    || singularAnswer.includes(singularStored);
 }
 
 export default function QuizView({ etude, onComplete }: QuizViewProps) {
@@ -79,6 +100,7 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
     userAnswered: false,
     mode: 'identify',
     selectedText: '',
+    selectedFragments: [],
     selectionValidated: false,
     selectionError: '',
     matchedCitation: null,
@@ -95,6 +117,7 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
       isCorrect: null,
       userAnswered: false,
       selectedText: '',
+      selectedFragments: [],
       selectionValidated: false,
       selectionError: '',
       matchedCitation: null,
@@ -116,60 +139,59 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
       isCorrect: null,
       userAnswered: false,
       selectedText: '',
+      selectedFragments: [],
       selectionValidated: false,
       selectionError: '',
       matchedCitation: null,
     }));
   }, []);
 
-  const validateLocateAnswer = useCallback((selectedText: string, procede: string) => {
-    const selected = normalize(selectedText);
-    if (!selected) return null;
+  const addSelectedFragment = useCallback((fragment: string) => {
+    const cleaned = fragment.trim();
+    if (!cleaned || state.mode !== 'locate' || state.userAnswered || state.selectionValidated) return;
+    setState(previous => {
+      if (previous.selectedFragments.some(existing => normalize(existing) === normalize(cleaned))) return previous;
+      const selectedFragments = [...previous.selectedFragments, cleaned];
+      return { ...previous, selectedFragments, selectedText: selectedFragments.join(' … '), selectionError: '' };
+    });
+    window.getSelection()?.removeAllRanges();
+  }, [state.mode, state.userAnswered, state.selectionValidated]);
 
+  const validateLocateAnswer = useCallback((selectedFragments: string[], procede: string) => {
+    if (selectedFragments.length === 0) return null;
     return allCitations.find(citation => {
-      const quoteMatches = citation.quotes
-        .map(normalize)
-        .filter(Boolean)
-        .some(quote => selected === quote || selected.includes(quote) || quote.includes(selected));
-      const procedeMatches = normalize(citation.procede) === normalize(procede);
-      return quoteMatches && procedeMatches;
+      const quotes = citation.quotes.map(normalize).filter(Boolean);
+      const fragmentsMatch = selectedFragments.every(fragment => {
+        const selected = normalize(fragment);
+        return quotes.some(quote => selected === quote);
+      });
+      const isProcedeMatch = procedeMatches(procede, citation.procede);
+      return fragmentsMatch && isProcedeMatch;
     }) ?? null;
   }, [allCitations]);
 
-  const validateTextSelection = useCallback(() => {
-    if (state.mode !== 'locate' || state.userAnswered || state.selectionValidated) return;
-    const selectedText = window.getSelection()?.toString().trim() ?? '';
-    if (!selectedText) return;
-
-    const selected = normalize(selectedText);
-    const citationMatch = allCitations.some(citation => citation.quotes
-      .map(normalize)
-      .filter(Boolean)
-      .some(quote => selected === quote));
-
-    if (!citationMatch) {
-      setState(previous => ({
-        ...previous,
-        selectedText,
-        selectionError: 'Cette sélection ne correspond pas à une citation enregistrée. Sélectionnez le texte exact d’une citation.',
-      }));
+  const validateSelectedFragments = useCallback(() => {
+    if (state.mode !== 'locate' || state.userAnswered || state.selectionValidated || state.selectedFragments.length === 0) return;
+    const matchingCitation = allCitations.find(citation => {
+      const quotes = citation.quotes.map(normalize).filter(Boolean);
+      return state.selectedFragments.every(fragment => quotes.includes(normalize(fragment)));
+    });
+    if (!matchingCitation) {
+      setState(previous => ({ ...previous, selectionError: 'Ces extraits ne correspondent pas tous à la même citation enregistrée.' }));
       return;
     }
+    setState(previous => ({ ...previous, selectionValidated: true, selectionError: '', selectedProcede: '' }));
+  }, [allCitations, state.mode, state.userAnswered, state.selectionValidated, state.selectedFragments]);
 
-    setState(previous => ({
-      ...previous,
-      selectedText,
-      selectionValidated: true,
-      selectionError: '',
-      selectedProcede: '',
-    }));
-    window.getSelection()?.removeAllRanges();
-  }, [state.mode, state.userAnswered, state.selectionValidated, allCitations]);
+  const clearSelectedFragments = useCallback(() => {
+    if (state.userAnswered || state.selectionValidated) return;
+    setState(previous => ({ ...previous, selectedText: '', selectedFragments: [], selectionError: '' }));
+  }, [state.userAnswered, state.selectionValidated]);
 
   const submitLocate = useCallback((procede: string) => {
     if (state.mode !== 'locate' || state.userAnswered || !state.selectionValidated || !state.selectedText) return;
 
-    const matchedCitation = validateLocateAnswer(state.selectedText, procede);
+    const matchedCitation = validateLocateAnswer(state.selectedFragments, procede);
     setState(previous => ({
       ...previous,
       selectedProcede: procede,
@@ -182,7 +204,7 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
 
   const submitIdentify = useCallback((procede: string) => {
     if (!current || state.mode !== 'identify' || state.userAnswered) return;
-    const correct = normalize(current.procede) === normalize(procede);
+    const correct = procedeMatches(procede, current.procede);
     setState(previous => ({
       ...previous,
       selectedProcede: procede,
@@ -203,6 +225,7 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
         isCorrect: null,
         userAnswered: false,
         selectedText: '',
+        selectedFragments: [],
         selectionValidated: false,
         selectionError: '',
         matchedCitation: null,
@@ -221,6 +244,7 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
       userAnswered: false,
       mode: 'identify',
       selectedText: '',
+      selectedFragments: [],
       selectionValidated: false,
       selectionError: '',
       matchedCitation: null,
@@ -321,8 +345,8 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
   const getButtonClass = (procede: string) => {
     if (!state.userAnswered) return 'border-white/20 bg-slate-800 text-white hover:border-white/40 hover:bg-slate-700';
     const isCorrect = state.mode === 'identify'
-      ? normalize(current?.procede ?? '') === normalize(procede)
-      : state.matchedCitation !== null && normalize(state.matchedCitation.procede) === normalize(procede);
+      ? procedeMatches(procede, current?.procede ?? '')
+      : state.matchedCitation !== null && procedeMatches(procede, state.matchedCitation.procede);
     if (isCorrect) return 'border-emerald-400 bg-emerald-600/50 text-white font-bold shadow-sm shadow-emerald-500/30';
     if (state.selectedProcede === procede) return 'border-red-500 bg-red-600/50 text-white';
     return 'border-white/10 bg-slate-800/50 text-slate-500';
@@ -333,19 +357,25 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
     : undefined;
 
   const renderPoemLine = (line: string) => {
-    if (state.mode !== 'locate' || !state.selectionValidated || !state.selectedText) return line;
-    const start = line.indexOf(state.selectedText);
-    if (start < 0) return line;
-    const end = start + state.selectedText.length;
-    return (
-      <>
-        {line.slice(0, start)}
-        <mark className="rounded bg-amber-300/70 px-1 text-[#34271f] ring-2 ring-amber-500/50">
-          {line.slice(start, end)}
-        </mark>
-        {line.slice(end)}
-      </>
-    );
+    if (state.mode !== 'locate' || state.selectedFragments.length === 0) return line;
+    const ranges = state.selectedFragments
+      .map(fragment => {
+        const start = line.toLocaleLowerCase().indexOf(fragment.toLocaleLowerCase());
+        return start >= 0 ? { start, end: start + fragment.length } : null;
+      })
+      .filter((range): range is { start: number; end: number } => range !== null)
+      .sort((a, b) => a.start - b.start);
+    if (ranges.length === 0) return line;
+    const parts: React.ReactNode[] = [];
+    let cursor = 0;
+    ranges.forEach((range, index) => {
+      if (range.start < cursor) return;
+      if (range.start > cursor) parts.push(<span key={`text-${index}`}>{line.slice(cursor, range.start)}</span>);
+      parts.push(<mark key={`mark-${index}`} className="rounded bg-amber-300/70 px-1 text-[#34271f] ring-2 ring-amber-500/50">{line.slice(range.start, range.end)}</mark>);
+      cursor = range.end;
+    });
+    if (cursor < line.length) parts.push(<span key="text-end">{line.slice(cursor)}</span>);
+    return parts;
   };
 
   return (
@@ -380,7 +410,7 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
       ) : (
         <div className="wood-panel paper-sheet rounded-lg p-4 space-y-2">
           <div className="flex items-center gap-2 text-sm font-semibold text-white"><BookOpen size={15} className="text-amber-400" /> Trouver une citation dans le poème</div>
-          <p className="text-xs text-slate-500">Surlignez n'importe quelle citation dans le texte, choisissez son procédé, puis validez.</p>
+          <p className="text-xs text-slate-500">Sélectionnez un ou plusieurs extraits séparés dans le texte, puis validez-les avant de choisir le procédé.</p>
         </div>
       )}
 
@@ -401,20 +431,33 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
             {etude.textLines.map((line, index) => (
               <div key={index} className="flex gap-4 py-1 text-base leading-relaxed font-serif-literary select-text">
                 <span className="text-slate-600 select-none w-6 shrink-0 text-right text-sm">{index + 1}</span>
-                <span className="flex-1">{renderPoemLine(line)}</span>
+                <span className="flex-1" onMouseUp={() => {
+                  const selection = window.getSelection()?.toString().trim() ?? '';
+                  if (selection) addSelectedFragment(selection);
+                }}>{renderPoemLine(line)}</span>
               </div>
             ))}
-            <div className="mt-4 border-t border-white/5 pt-4 flex flex-col sm:flex-row sm:items-center gap-3">
-              <button
-                onClick={validateTextSelection}
-                disabled={state.selectionValidated}
-                className="copper-action px-4 py-2 rounded-lg text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {state.selectionValidated ? 'Texte validé' : 'Valider le texte sélectionné'}
-              </button>
-              <span className={`text-xs ${state.selectionError ? 'text-red-600' : 'text-slate-500'}`}>
-                {state.selectionError || (state.selectionValidated ? 'Choisissez maintenant un procédé.' : 'Surlignez d’abord une citation, puis cliquez sur le bouton.')}
-              </span>
+            <div className="mt-4 border-t border-white/5 pt-4 flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <button
+                  onClick={validateSelectedFragments}
+                  disabled={state.selectedFragments.length === 0 || state.selectionValidated}
+                  className="copper-action px-4 py-2 rounded-lg text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {state.selectionValidated ? 'Extraits validés' : 'Ajouter / valider un extrait'}
+                </button>
+                {!state.selectionValidated && state.selectedFragments.length > 0 && (
+                  <button onClick={clearSelectedFragments} className="text-xs text-slate-500 hover:text-red-600">Effacer les extraits</button>
+                )}
+                <span className={`text-xs ${state.selectionError ? 'text-red-600' : 'text-slate-500'}`}>
+                  {state.selectionError || (state.selectionValidated ? 'Choisissez maintenant un procédé.' : 'Sélectionnez plusieurs mots séparés si nécessaire, puis validez.')}
+                </span>
+              </div>
+              {state.selectedFragments.length > 0 && !state.selectionValidated && (
+                <div className="flex flex-wrap gap-2">
+                  {state.selectedFragments.map((fragment, index) => <span key={`${fragment}-${index}`} className="rounded-full bg-amber-500/15 px-2.5 py-1 text-xs text-amber-800">{fragment}</span>)}
+                </div>
+              )}
             </div>
             {state.selectionValidated && (
               <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700">
@@ -493,7 +536,7 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
                 <div className="mt-2 text-sm text-red-300/80">
                   {state.mode === 'identify'
                     ? <>La bonne réponse était : <strong>{current?.procede}</strong></>
-                    : 'La sélection et le procédé choisis ne correspondent à aucune citation de cette analyse.'}
+                    : <>La bonne réponse était : <strong>{state.matchedCitation?.procede}</strong></>}
                 </div>
               )}
             </div>

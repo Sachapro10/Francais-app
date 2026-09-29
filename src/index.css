@@ -28,9 +28,45 @@
 }
 
 html,
-body {
+body,
+#root {
+  min-height: 100%;
   background: var(--paper) !important;
   color: var(--ink) !important;
+}
+
+@media (min-width: 1024px) {
+  html,
+  body,
+  #root {
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+}
+
+.app-shell {
+  min-height: 100dvh;
+}
+
+.app-main {
+  min-height: 0;
+}
+
+@media (min-width: 1024px) {
+  .study-main {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .study-main > .study-dashboard {
+    flex: 1;
+  }
+}
+
+.study-scroll-panel {
+  scrollbar-width: thin;
+  scrollbar-color: #b8a58e transparent;
 }
 
 body {
@@ -170,8 +206,36 @@ h3,
 
 .wood-icon {
   background: var(--walnut) !important;
+  color: var(--paper) !important;
   border: 0 !important;
   box-shadow: none !important;
+}
+
+.wood-icon svg,
+.wood-icon [class~="text-white"] {
+  color: var(--paper) !important;
+  stroke: currentColor !important;
+}
+
+.copper-action,
+[class~="bg-indigo-600"],
+[class~="bg-indigo-500"] {
+  color: var(--paper-sheet) !important;
+}
+
+.copper-action svg,
+.copper-action [class~="text-white"],
+[class~="bg-indigo-600"] svg,
+[class~="bg-indigo-500"] svg,
+[class~="bg-indigo-600"] [class~="text-white"],
+[class~="bg-indigo-500"] [class~="text-white"] {
+  color: var(--paper-sheet) !important;
+  stroke: currentColor !important;
+}
+
+.wood-tab[class~="bg-indigo-600"],
+.wood-tab[class~="bg-indigo-500"] {
+  color: var(--paper-sheet) !important;
 }
 
 .wood-nav {
@@ -184,8 +248,8 @@ h3,
 
 /* Gentle editorial motion: the interface settles like paper on a desk. */
 @keyframes page-rise {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes soft-pop {
@@ -264,6 +328,11 @@ button:not(:disabled):active {
 .flashcard-face > .flashcard-face {
   position: static;
   min-height: 340px;
+}
+
+.flashcard-procede {
+  color: var(--terracotta) !important;
+  -webkit-text-fill-color: var(--terracotta) !important;
 }
 
 /* Panel entrance transforms must not compete with the face rotation. */

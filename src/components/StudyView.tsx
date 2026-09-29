@@ -129,10 +129,10 @@ export default function StudyView({ etude }: StudyViewProps) {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+    <div className="study-dashboard grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-6 min-h-0 lg:h-full">
       {/* Left: Text panel */}
-      <div className="lg:col-span-3 space-y-6">
-        <div className="wood-panel paper-sheet rounded-lg overflow-hidden">
+      <div className="lg:col-span-3 min-h-0 flex flex-col gap-4 lg:overflow-y-auto study-scroll-panel">
+        <div className="wood-panel paper-sheet rounded-lg overflow-hidden shrink-0">
           <div className="px-5 py-4 border-b border-white/5 flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
               <BookOpen size={16} className="text-amber-400" />
@@ -152,7 +152,7 @@ export default function StudyView({ etude }: StudyViewProps) {
             )}
           </div>
 
-          <div className="px-5 py-4">
+          <div className="study-poem-content px-5 py-4 lg:max-h-[calc(100dvh-10.5rem)] lg:overflow-y-auto study-scroll-panel">
             {etude.textLines.map((line, lineIdx) => {
               const lineNum = lineIdx + 1;
               const lineHighlights = highlightMap[lineIdx] || [];
@@ -210,8 +210,8 @@ export default function StudyView({ etude }: StudyViewProps) {
       </div>
 
       {/* Right: Citations panel */}
-      <div className="lg:col-span-2 space-y-4">
-        <div className="flex items-center gap-2 mb-2">
+      <div className="lg:col-span-2 min-h-0 flex flex-col gap-4 lg:overflow-y-auto study-scroll-panel">
+        <div className="flex items-center gap-2 mb-0 shrink-0">
           <Microscope size={18} className="text-indigo-400" />
           <h2 className="font-semibold text-white">Analyse littéraire</h2>
           {etude.movements.length > 0 && (
@@ -221,6 +221,7 @@ export default function StudyView({ etude }: StudyViewProps) {
           )}
         </div>
 
+        <div className="space-y-4">
         {etude.movements.map(movement => {
           const isExpanded = expandedMovements.has(movement.id);
           return (
@@ -277,6 +278,7 @@ export default function StudyView({ etude }: StudyViewProps) {
             </div>
           );
         })}
+        </div>
       </div>
     </div>
   );
