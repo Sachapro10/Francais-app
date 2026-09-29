@@ -23,7 +23,18 @@ interface SavedAnalysis {
   etude: EtudeLineaire;
 }
 
+interface CloudAnalysis {
+  id: string;
+  title: string;
+  author?: string;
+  created_at: string;
+  etude: EtudeLineaire;
+}
+
 const STORAGE_KEY = 'etude-analyses-v1';
+const SUPABASE_URL = ((import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_SUPABASE_URL ?? 'https://bbgvmialvmvxlxdloueo.supabase.co').replace(/\/$/, '');
+const SUPABASE_ANON_KEY = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_SUPABASE_ANON_KEY ?? '';
+const SHARED_ANALYSES_ENDPOINT = `${SUPABASE_URL}/rest/v1/shared_analyses`;
 
 function loadAnalyses(): SavedAnalysis[] {
   try {
@@ -47,8 +58,11 @@ export default function App({}: {}) {
   const [view, setView] = useState<ViewMode>('study');
   const [fileInputKey, setFileInputKey] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [showIntro, setShowIntro] = useState(saved.length > 0 && saved[0].id !== 'builtin');
+  const [showIntro, setShowIntro] = useState(false);
   const [showAnalyses, setShowAnalyses] = useState(false);
+  const [cloudAnalyses, setCloudAnalyses] = useState<CloudAnalysis[]>([]);
+  const [cloudStatus, setCloudStatus] = useState<'idle' | 'loading' | 'publishing' | 'ready' | 'error'>('idle');
+  const [cloudMessage, setCloudMessage] = useState('');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('saved');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -130,7 +144,7 @@ export default function App({}: {}) {
       saveAnalyses(updated);
       return updated;
     });
-    setView('quiz');
+    setView('study');
   }, []);
 
   const handleStartNew = () => {
@@ -142,6 +156,69 @@ export default function App({}: {}) {
     setShowIntro(false);
     setView('study');
   };
+
+  const supabaseHeaders = useCallback((): HeadersInit => ({
+    apikey: SUPABASE_ANON_KEY,
+    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    'Content-Type': 'application/json',
+  }), []);
+
+  const loadCloudAnalyses = useCallback(async () => {
+    if (!SUPABASE_ANON_KEY) {
+      setCloudStatus('error');
+      setCloudMessage('Ajoutez VITE_SUPABASE_ANON_KEY pour utiliser la bibliothèque cloud.');
+      return;
+    }
+    setCloudStatus('loading');
+    try {
+      const response = await fetch(`${SHARED_ANALYSES_ENDPOINT}?select=id,title,author,created_at,etude&order=created_at.desc`, {
+        headers: supabaseHeaders(),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      setCloudAnalyses(await response.json() as CloudAnalysis[]);
+      setCloudStatus('ready');
+      setCloudMessage('');
+    } catch {
+      setCloudStatus('error');
+      setCloudMessage('La bibliothèque cloud est momentanément indisponible.');
+    }
+  }, [supabaseHeaders]);
+
+  const publishCurrentAnalysis = useCallback(async () => {
+    if (!SUPABASE_ANON_KEY) {
+      setCloudStatus('error');
+      setCloudMessage('Ajoutez VITE_SUPABASE_ANON_KEY pour publier une analyse.');
+      return;
+    }
+    setCloudStatus('publishing');
+    try {
+      const response = await fetch(SHARED_ANALYSES_ENDPOINT, {
+        method: 'POST',
+        headers: { ...supabaseHeaders(), Prefer: 'return=minimal' },
+        body: JSON.stringify({ title: etude.title, author: etude.author ?? null, etude }),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      setCloudStatus('ready');
+      setCloudMessage('Analyse publiée dans la bibliothèque.');
+      await loadCloudAnalyses();
+    } catch {
+      setCloudStatus('error');
+      setCloudMessage('Publication impossible. Vérifiez la configuration Supabase.');
+    }
+  }, [etude, loadCloudAnalyses, supabaseHeaders]);
+
+  const loadCloudAnalysis = useCallback((analysis: CloudAnalysis) => {
+    const localId = `cloud-${analysis.id}`;
+    setEtude(analysis.etude);
+    setCurrentId(localId);
+    setAnalysesList(previous => {
+      const next = [{ id: localId, title: analysis.title, author: analysis.author, savedAt: Date.now(), etude: analysis.etude }, ...previous.filter(item => item.id !== localId)];
+      saveAnalyses(next);
+      return next;
+    });
+    setShowAnalyses(false);
+    setView('study');
+  }, []);
 
   const currentAnalysis = analysesList.find(a => a.id === currentId);
   const analysesTitle = currentAnalysis?.title ?? etude.title;
@@ -232,6 +309,16 @@ export default function App({}: {}) {
                     {analysesList.length}
                   </span>
                 )}
+              </button>
+
+              {/* Cloud library */}
+              <button
+                onClick={() => { setShowAnalyses(true); void loadCloudAnalyses(); }}
+                className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-white/5 transition-all"
+                title="Ouvrir la bibliothèque partagée"
+              >
+                <CloudOff size={14} />
+                Bibliothèque
               </button>
 
               {/* Save indicator */}
@@ -344,7 +431,15 @@ export default function App({}: {}) {
                 ))}
               </div>
 
-              <div className="p-3 border-t border-white/5">
+              <div className="p-3 border-t border-white/5 space-y-2">
+                <button
+                  onClick={() => void publishCurrentAnalysis()}
+                  disabled={cloudStatus === 'publishing'}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border border-amber-500/40 text-amber-700 hover:bg-amber-500/10 transition-colors disabled:opacity-50"
+                >
+                  <Upload size={16} />
+                  {cloudStatus === 'publishing' ? 'Publication…' : 'Partager cette analyse'}
+                </button>
                 <button
                   onClick={() => { setShowAnalyses(false); setView('newText'); }}
                   className="copper-action w-full flex items-center justify-center gap-2 px-4 py-2.5 text-white rounded-lg text-sm font-medium transition-colors"
@@ -352,6 +447,31 @@ export default function App({}: {}) {
                   <Plus size={16} />
                   Nouvelle analyse
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Shared cloud library */}
+        {showAnalyses && cloudStatus !== 'idle' && (
+          <div className="fixed inset-0 z-[51] flex items-end sm:items-center justify-center">
+            <div className="absolute inset-0 bg-[#3b2a21]/10" onClick={() => setCloudStatus('idle')} />
+            <div className="relative w-full sm:max-w-md rustic-modal rounded-t-2xl sm:rounded-2xl overflow-hidden">
+              <div className="flex items-center justify-between p-4 border-b border-white/5">
+                <h2 className="font-semibold text-white text-base">Bibliothèque partagée</h2>
+                <button onClick={() => setCloudStatus('idle')} className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors"><XCircle size={20} /></button>
+              </div>
+              <div className="p-3 max-h-80 overflow-y-auto space-y-2">
+                {cloudMessage && <p className="text-xs text-slate-500 px-1 py-2">{cloudMessage}</p>}
+                {cloudStatus === 'loading' && <p className="text-sm text-slate-500 text-center py-6">Chargement…</p>}
+                {cloudStatus === 'ready' && cloudAnalyses.length === 0 && <p className="text-sm text-slate-500 text-center py-6">Aucune analyse partagée.</p>}
+                {cloudAnalyses.map(analysis => (
+                  <button key={analysis.id} onClick={() => loadCloudAnalysis(analysis)} className="w-full text-left p-3 rounded-lg bg-slate-800/50 hover:bg-slate-800 border border-transparent hover:border-white/5 transition-all">
+                    <div className="text-sm font-medium text-white truncate">{analysis.title}</div>
+                    {analysis.author && <div className="text-xs text-slate-500 truncate">{analysis.author}</div>}
+                    <div className="flex items-center gap-1 mt-1 text-xs text-slate-600"><Clock size={10} />{formatSavedAt(new Date(analysis.created_at).getTime())}</div>
+                  </button>
+                ))}
               </div>
             </div>
           </div>

@@ -171,27 +171,9 @@ export default function FlashcardView({ etude }: FlashcardViewProps) {
   const frontCard = (
     <div className="p-8 h-full flex flex-col">
       <div className="text-center space-y-6 flex-1 flex flex-col items-center justify-center">
-        <div className="text-3xl">[cite]</div>
-        <blockquote className="text-lg text-slate-100 leading-relaxed max-w-sm">
-          {card?.citation}
-        </blockquote>
-        {card?.verses && card.verses.length > 0 && (
-          <div className="text-sm text-slate-500 italic">
-            Vers {card.verses.join(', ')}
-          </div>
-        )}
-      </div>
-      <div className="text-center text-slate-500 text-sm flex items-center justify-center gap-2 mt-4">
-        <Eye size={14} /> Cliquez pour retourner
-      </div>
-    </div>
-  );
-
-  const backCard = (
-    <div className="p-8 h-full flex flex-col">
-      <div className="text-center space-y-6 flex-1 flex flex-col items-center justify-center">
+        <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Procédé à mémoriser</div>
         <div className="text-3xl">[proc]</div>
-        <div className={`text-lg font-bold bg-gradient-to-r ${gradient} bg-clip-text text-transparent`}>
+        <div className={`text-xl font-bold bg-gradient-to-r ${gradient} bg-clip-text text-transparent`}>
           {card?.procede}
         </div>
         {isInterpretationRevealed ? (
@@ -224,7 +206,27 @@ export default function FlashcardView({ etude }: FlashcardViewProps) {
         )}
       </div>
       <div className="text-center text-slate-500 text-sm flex items-center justify-center gap-2 mt-4">
-        <EyeOff size={14} /> Cliquez pour retourner
+        <Eye size={14} /> Cliquez pour voir la citation
+      </div>
+    </div>
+  );
+
+  const backCard = (
+    <div className="p-8 h-full flex flex-col">
+      <div className="text-center space-y-6 flex-1 flex flex-col items-center justify-center">
+        <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Citation associée</div>
+        <div className="text-3xl">[cite]</div>
+        <blockquote className="text-lg text-slate-100 leading-relaxed max-w-sm">
+          {card?.citation}
+        </blockquote>
+        {card?.verses && card.verses.length > 0 && (
+          <div className="text-sm text-slate-500 italic">
+            Vers {card.verses.join(', ')}
+          </div>
+        )}
+      </div>
+      <div className="text-center text-slate-500 text-sm flex items-center justify-center gap-2 mt-4">
+        <EyeOff size={14} /> Cliquez pour voir le procédé
       </div>
     </div>
   );
