@@ -1,5 +1,6 @@
-import { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { EtudeLineaire, CitationItem } from '../types/etude';
+import { getCitationQuotes } from '../utils/citationUtils';
 import {
   Target, Trophy, CheckCircle2, XCircle, HelpCircle,
   RotateCcw, ChevronRight, BookOpen, Microscope, Tag
@@ -28,6 +29,8 @@ interface QuizState {
   selectionValidated: boolean;
   selectionError: string;
   matchedCitation: CitationItem | null;
+  // 4-option set for identify mode (1 correct + 3 decoys, shuffled)
+  identifyOptions: string[];
 }
 
 const CORRECT_BG = 'bg-emerald-500/15 border-emerald-400/40';
@@ -70,6 +73,122 @@ function procedeMatches(answer: string, stored: string): boolean {
     || singularAnswer.includes(singularStored);
 }
 
+/** Build a shuffled 4-option set: the correct answer + 3 random decoys from ALL_PROCEDES. */
+function buildIdentifyOptions(correctProcede: string, seed: number): string[] {
+  // Find the canonical name that best matches the stored procédé
+  const canonical = ALL_PROCEDES.find(p => procedeMatches(correctProcede, p)) ?? correctProcede;
+  const pool = ALL_PROCEDES.filter(p => !procedeMatches(p, canonical));
+  // Deterministic shuffle of pool using seed so options are stable per question
+  const seeded = [...pool];
+  let s = seed * 1013904223 + 1664525;
+  for (let i = seeded.length - 1; i > 0; i--) {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    const j = s % (i + 1);
+    [seeded[i], seeded[j]] = [seeded[j], seeded[i]];
+  }
+  const decoys = seeded.slice(0, 3);
+  const options = [canonical, ...decoys];
+  // Shuffle the 4 options
+  s = (s * 1664525 + 1013904223) >>> 0;
+  for (let i = options.length - 1; i > 0; i--) {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    const j = s % (i + 1);
+    [options[i], options[j]] = [options[j], options[i]];
+  }
+  return options;
+}
+
+/** Split lines into sonnet stanzas (4-4-3-3 for 14 lines, else every 4). */
+function groupSonnetStanzas(lines: string[]): string[][] {
+  if (lines.length === 14) {
+    return [lines.slice(0, 4), lines.slice(4, 8), lines.slice(8, 11), lines.slice(11, 14)];
+  }
+  const stanzas: string[][] = [];
+  for (let i = 0; i < lines.length; i += 4) {
+    stanzas.push(lines.slice(i, i + 4));
+  }
+  return stanzas;
+}
+
+/** Render stanza-grouped poem lines with optional selection and highlight support. */
+function PoemLines({
+  lines,
+  selectable = false,
+  renderLine,
+  onLineMouseUp,
+  compact = false,
+}: {
+  lines: string[];
+  selectable?: boolean;
+  renderLine?: (line: string, globalIndex: number) => React.ReactNode;
+  onLineMouseUp?: (globalIndex: number) => void;
+  compact?: boolean;
+}) {
+  const stanzas = groupSonnetStanzas(lines);
+  let lineCounter = 0;
+  return (
+    <div className={`space-y-4 ${selectable ? 'select-text' : ''}`}>
+      {stanzas.map((stanza, stanzaIdx) => {
+        const stanzaStart = lineCounter;
+        lineCounter += stanza.length;
+        return (
+          <div key={stanzaIdx} className="space-y-0">
+            {stanza.map((line, localIdx) => {
+              const globalIdx = stanzaStart + localIdx;
+              return (
+                <div
+                  key={globalIdx}
+                  className={`flex gap-4 ${compact ? 'py-0.5' : 'py-1'} text-base leading-relaxed font-serif-literary`}
+                >
+                  <span className="text-slate-600 select-none w-6 shrink-0 text-right text-sm leading-relaxed">
+                    {globalIdx + 1}
+                  </span>
+                  <span
+                    className="flex-1"
+                    onMouseUp={onLineMouseUp ? () => onLineMouseUp(globalIdx) : undefined}
+                  >
+                    {renderLine ? renderLine(line, globalIdx) : line}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+interface PoemDisplayProps {
+  lines: string[];
+  title: string;
+  selectable?: boolean;
+  renderLine?: (line: string, globalIndex: number) => React.ReactNode;
+  onLineMouseUp?: (globalIndex: number) => void;
+  compact?: boolean;
+}
+
+function PoemDisplay({ lines, title, selectable = false, renderLine, onLineMouseUp, compact = false }: PoemDisplayProps) {
+  return (
+    <div className="wood-panel paper-sheet rounded-lg overflow-hidden">
+      <div className={`px-5 border-b border-white/5 flex items-center gap-2 ${compact ? 'py-2' : 'py-3'}`}>
+        <BookOpen size={14} className="text-amber-400" />
+        <span className="text-sm font-medium text-white">{title}</span>
+        {selectable && <span className="ml-auto text-xs text-slate-500">Texte sélectionnable</span>}
+      </div>
+      <div className={`px-5 ${compact ? 'py-3' : 'py-4'}`}>
+        <PoemLines
+          lines={lines}
+          selectable={selectable}
+          renderLine={renderLine}
+          onLineMouseUp={onLineMouseUp}
+          compact={compact}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function QuizView({ etude, onComplete }: QuizViewProps) {
   const allCitations = useMemo(
     () => etude.movements.flatMap(movement => movement.citations),
@@ -104,6 +223,7 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
     selectionValidated: false,
     selectionError: '',
     matchedCitation: null,
+    identifyOptions: shuffled[0] ? buildIdentifyOptions(shuffled[0].procede, 0) : [],
   });
 
   const current = shuffled[state.currentIdx];
@@ -121,13 +241,9 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
       selectionValidated: false,
       selectionError: '',
       matchedCitation: null,
+      identifyOptions: shuffled[index] ? buildIdentifyOptions(shuffled[index].procede, index) : [],
     }));
-  }, []);
-
-  const chooseCitation = useCallback((index: number) => {
-    if (state.mode !== 'identify' || state.userAnswered) return;
-    resetQuestion(index);
-  }, [resetQuestion, state.mode, state.userAnswered]);
+  }, [shuffled]);
 
   const startQuiz = useCallback((mode: QuizMode) => {
     setState(previous => ({
@@ -143,8 +259,9 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
       selectionValidated: false,
       selectionError: '',
       matchedCitation: null,
+      identifyOptions: shuffled[0] ? buildIdentifyOptions(shuffled[0].procede, 0) : [],
     }));
-  }, []);
+  }, [shuffled]);
 
   const addSelectedFragment = useCallback((fragment: string) => {
     const cleaned = fragment.trim();
@@ -160,7 +277,7 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
   const validateLocateAnswer = useCallback((selectedFragments: string[], procede: string) => {
     if (selectedFragments.length === 0) return null;
     return allCitations.find(citation => {
-      const quotes = citation.quotes.map(normalize).filter(Boolean);
+      const quotes = getCitationQuotes(citation).map(normalize).filter(Boolean);
       const fragmentsMatch = selectedFragments.every(fragment => {
         const selected = normalize(fragment);
         return quotes.some(quote => selected === quote);
@@ -173,7 +290,7 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
   const validateSelectedFragments = useCallback(() => {
     if (state.mode !== 'locate' || state.userAnswered || state.selectionValidated || state.selectedFragments.length === 0) return;
     const matchingCitation = allCitations.find(citation => {
-      const quotes = citation.quotes.map(normalize).filter(Boolean);
+      const quotes = getCitationQuotes(citation).map(normalize).filter(Boolean);
       return state.selectedFragments.every(fragment => quotes.includes(normalize(fragment)));
     });
     if (!matchingCitation) {
@@ -229,9 +346,10 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
         selectionValidated: false,
         selectionError: '',
         matchedCitation: null,
+        identifyOptions: shuffled[nextIndex] ? buildIdentifyOptions(shuffled[nextIndex].procede, nextIndex) : [],
       };
     });
-  }, []);
+  }, [shuffled]);
 
   const restartQuiz = useCallback(() => {
     setState({
@@ -248,8 +366,9 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
       selectionValidated: false,
       selectionError: '',
       matchedCitation: null,
+      identifyOptions: shuffled[0] ? buildIdentifyOptions(shuffled[0].procede, 0) : [],
     });
-  }, [shuffled.length]);
+  }, [shuffled]);
 
   if (state.phase === 'intro') {
     return (
@@ -295,20 +414,7 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
         </div>
 
         {etude.textLines.length > 0 && (
-          <div className="wood-panel paper-sheet rounded-lg overflow-hidden">
-            <div className="px-5 py-3 border-b border-white/5 flex items-center gap-2">
-              <BookOpen size={14} className="text-amber-400" />
-              <span className="text-sm font-medium text-white">{etude.title}</span>
-            </div>
-            <div className="px-5 py-4">
-              {etude.textLines.map((line, index) => (
-                <div key={index} className="flex gap-4 py-1 text-base leading-relaxed font-serif-literary text-slate-300">
-                  <span className="text-slate-600 select-none w-6 shrink-0 text-right text-sm">{index + 1}</span>
-                  <span>{line}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          <PoemDisplay lines={etude.textLines} title={etude.title} />
         )}
       </div>
     );
@@ -389,24 +495,15 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
       </div>
 
       {state.mode === 'identify' ? (
-        <div className="wood-panel paper-sheet rounded-lg p-4 space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold shrink-0">Choisir une citation</div>
-            <select
-              value={state.currentIdx}
-              onChange={event => chooseCitation(Number(event.target.value))}
-              disabled={state.userAnswered}
-              className="paper-input w-full sm:flex-1 rounded-lg px-3 py-2 text-sm"
-              aria-label="Choisir une citation à analyser"
-            >
-              {shuffled.map((citation, index) => {
-                const citationMovement = etude.movements.find(item => item.citations.some(entry => entry.id === citation.id));
-                return <option key={citation.id} value={index}>{citationMovement ? `${citationMovement.title} — ` : ''}{citation.citation}</option>;
-              })}
-            </select>
+        <>
+          {etude.textLines.length > 0 && (
+            <PoemDisplay lines={etude.textLines} title={etude.title} compact />
+          )}
+          <div className="wood-panel paper-sheet rounded-lg p-4 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-semibold text-white"><Tag size={15} className="text-indigo-400" /> Identifier le procédé</div>
+            <p className="text-xs text-slate-500">Lisez la citation, puis choisissez le procédé parmi les 4 propositions.</p>
           </div>
-          <p className="text-xs text-slate-500">Choisissez librement une citation, puis identifiez son procédé parmi toute la liste.</p>
-        </div>
+        </>
       ) : (
         <div className="wood-panel paper-sheet rounded-lg p-4 space-y-2">
           <div className="flex items-center gap-2 text-sm font-semibold text-white"><BookOpen size={15} className="text-amber-400" /> Trouver une citation dans le poème</div>
@@ -422,21 +519,21 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
 
       {state.mode === 'locate' && (
         <div className="wood-panel paper-sheet rounded-lg overflow-hidden">
-          <div className="px-5 py-3 border-b border-white/5 flex items-center gap-2">
+          <div className="px-5 py-2.5 border-b border-white/5 flex items-center gap-2">
             <BookOpen size={14} className="text-amber-400" />
             <span className="text-sm font-medium text-white">{etude.title}</span>
             <span className="ml-auto text-xs text-slate-500">Texte sélectionnable</span>
           </div>
           <div className="px-5 py-4">
-            {etude.textLines.map((line, index) => (
-              <div key={index} className="flex gap-4 py-1 text-base leading-relaxed font-serif-literary select-text">
-                <span className="text-slate-600 select-none w-6 shrink-0 text-right text-sm">{index + 1}</span>
-                <span className="flex-1" onMouseUp={() => {
-                  const selection = window.getSelection()?.toString().trim() ?? '';
-                  if (selection) addSelectedFragment(selection);
-                }}>{renderPoemLine(line)}</span>
-              </div>
-            ))}
+            <PoemLines
+              lines={etude.textLines}
+              selectable
+              renderLine={(line) => renderPoemLine(line)}
+              onLineMouseUp={() => {
+                const selection = window.getSelection()?.toString().trim() ?? '';
+                if (selection) addSelectedFragment(selection);
+              }}
+            />
             <div className="mt-4 border-t border-white/5 pt-4 flex flex-col gap-3">
               <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                 <button
@@ -493,8 +590,8 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-            {allProcedes.map(procede => (
+          <div className={`grid gap-2 mt-2 ${state.mode === 'identify' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'}`}>
+            {(state.mode === 'identify' ? state.identifyOptions : allProcedes).map(procede => (
               <button
                 key={procede}
                 onClick={() => state.mode === 'identify' ? submitIdentify(procede) : submitLocate(procede)}

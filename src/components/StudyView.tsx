@@ -1,8 +1,9 @@
 import { useState, useCallback, useMemo } from 'react';
 import { CitationItem, Movement, EtudeLineaire } from '../types/etude';
+import { findCitationRange, getCitationQuotes } from '../utils/citationUtils';
 import {
-  ChevronDown, ChevronRight, CheckCircle2, Quote,
-  Layers, Info, MousePointerClick, BookOpen, Microscope
+  ChevronDown, ChevronRight, Quote,
+  Layers, MousePointerClick, BookOpen, Microscope
 } from 'lucide-react';
 
 interface StudyViewProps {
@@ -77,22 +78,25 @@ export default function StudyView({ etude }: StudyViewProps) {
   const selectCitation = useCallback((item: CitationItem) => {
     const highlights: Highlight[] = [];
 
-    // Find matching ranges in the text lines
-    for (const quote of item.quotes) {
-      const normalizedQuote = quote.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    // Find every occurrence of every excerpt in the current poem text. Derive
+    // excerpts from the edited display value so old parsed `quotes` cannot
+    // leave highlights stale.
+    for (const quote of getCitationQuotes(item)) {
       for (let lineIdx = 0; lineIdx < etude.textLines.length; lineIdx++) {
         const line = etude.textLines[lineIdx];
-        const normalizedLine = line.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-        const idx = normalizedLine.indexOf(normalizedQuote);
-        if (idx !== -1) {
+        let searchFrom = 0;
+        let range = findCitationRange(line, quote, searchFrom);
+        while (range) {
           highlights.push({
             lineIndex: lineIdx,
-            start: idx,
-            end: idx + quote.length,
-            text: line.slice(idx, idx + quote.length),
+            start: range.start,
+            end: range.end,
+            text: line.slice(range.start, range.end),
             color: 'active',
             citationId: item.id,
           });
+          searchFrom = range.end;
+          range = findCitationRange(line, quote, searchFrom);
         }
       }
     }

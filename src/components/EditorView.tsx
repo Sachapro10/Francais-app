@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { EtudeLineaire, CitationItem, Movement } from '../types/etude';
+import { deriveCitationQuotes } from '../utils/citationUtils';
 import {
-  Edit3, Plus, Trash2, Save, X, ChevronDown, ChevronRight,
+  Edit3, Plus, Trash2, Save, ChevronDown, ChevronRight,
   Layers, Quote, CheckCircle2
 } from 'lucide-react';
 
@@ -86,7 +87,9 @@ export default function EditorView({ etude, onSave }: EditorViewProps) {
               ...m,
               citations: m.citations.map(c =>
                 c.id === citationId
-                  ? { ...c, [field]: field === 'verses' ? value.split(',').map(v => parseInt(v.trim())).filter(v => !isNaN(v)) : value }
+                  ? field === 'citation'
+                    ? { ...c, citation: value, quotes: deriveCitationQuotes(value), matchedRanges: undefined }
+                    : { ...c, [field]: field === 'verses' ? value.split(',').map(v => parseInt(v.trim())).filter(v => !isNaN(v)) : value }
                   : c
               ),
             }
