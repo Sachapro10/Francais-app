@@ -71,27 +71,31 @@ export default function App({}: {}) {
   const [cloudSyncStatus, setCloudSyncStatus] = useState<'idle' | 'saving' | 'synced' | 'error'>('idle');
   const [cloudMessage, setCloudMessage] = useState('');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('saved');
+  const [analysesList, setAnalysesList] = useState<SavedAnalysis[]>(() => loadAnalyses());
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Keep a live ref to the current cloudId so the debounced auto-save always has the latest value
+  const cloudIdRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    cloudIdRef.current = analysesList.find(a => a.id === currentId)?.cloudId;
+  }, [analysesList, currentId]);
 
   // Auto-save current analysis on every etude change (local + cloud if original owner)
   useEffect(() => {
     setSaveStatus('saving');
     const timeout = setTimeout(() => {
-      let targetCloudId: string | undefined;
-      let targetIsOwner = true;
+      const now = Date.now();
 
-      setSaveAnalyses(prev => {
-        const now = Date.now();
+      // Sync cloudId from ref before saving (in case a recent POST just returned a new cloudId)
+      const currentCloudId = cloudIdRef.current;
+
+      setAnalysesList(prev => {
         const existingIdx = prev.findIndex(a => a.id === currentId);
         let updated: SavedAnalysis[];
         if (existingIdx >= 0) {
           updated = [...prev];
-          const curr = updated[existingIdx];
-          targetCloudId = curr.cloudId;
-          targetIsOwner = curr.isOwner !== false;
-          updated[existingIdx] = { ...curr, title: etude.title, author: etude.author, savedAt: now, etude };
+          updated[existingIdx] = { ...prev[existingIdx], title: etude.title, author: etude.author, savedAt: now, etude };
         } else {
-          targetIsOwner = true;
           updated = [{ id: currentId, title: etude.title, author: etude.author, savedAt: now, etude, isOwner: true }, ...prev];
         }
         saveAnalyses(updated);
@@ -100,12 +104,14 @@ export default function App({}: {}) {
       setSaveStatus('saved');
 
       // Auto-save to Supabase cloud if SUPABASE_ANON_KEY is available and is owner
-      if (SUPABASE_ANON_KEY && targetIsOwner && currentId !== 'builtin') {
+      const currentEntry = analysesList.find(a => a.id === currentId);
+      const isOwner = currentEntry?.isOwner !== false && currentId !== 'builtin';
+      if (SUPABASE_ANON_KEY && isOwner) {
         setCloudSyncStatus('saving');
         (async () => {
           try {
-            if (targetCloudId) {
-              const res = await fetch(`${SHARED_ANALYSES_ENDPOINT}?id=eq.${targetCloudId}`, {
+            if (currentCloudId) {
+              const res = await fetch(`${SHARED_ANALYSES_ENDPOINT}?id=eq.${currentCloudId}`, {
                 method: 'PATCH',
                 headers: supabaseHeaders(),
                 body: JSON.stringify({ title: etude.title, author: etude.author ?? null, etude }),
@@ -122,6 +128,8 @@ export default function App({}: {}) {
               const data = await res.json() as Array<{ id: string }>;
               const newId = Array.isArray(data) && data[0]?.id ? data[0].id : null;
               if (newId) {
+                // Immediately update both the ref AND localStorage so next edit uses PATCH
+                cloudIdRef.current = newId;
                 setAnalysesList(prev => {
                   const next = prev.map(item => item.id === currentId ? { ...item, cloudId: newId, isOwner: true } : item);
                   saveAnalyses(next);
@@ -139,12 +147,6 @@ export default function App({}: {}) {
     return () => clearTimeout(timeout);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [etude, currentId]);
-
-  const setSaveAnalyses = useCallback((updater: (prev: SavedAnalysis[]) => SavedAnalysis[]) => {
-    setAnalysesList(updater);
-  }, []);
-
-  const [analysesList, setAnalysesList] = useState<SavedAnalysis[]>(() => loadAnalyses());
 
   const triggerConfetti = useCallback(() => {
     setShowConfetti(true);
