@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { CitationItem, Movement, EtudeLineaire } from '../types/etude';
-import { findCitationRange, getCitationQuotes } from '../utils/citationUtils';
+import { findCitationRangesInPoem, getCitationQuotes } from '../utils/citationUtils';
 import {
   ChevronDown, ChevronRight, Quote,
   Layers, MousePointerClick, BookOpen, Microscope
@@ -82,22 +82,17 @@ export default function StudyView({ etude }: StudyViewProps) {
     // excerpts from the edited display value so old parsed `quotes` cannot
     // leave highlights stale.
     for (const quote of getCitationQuotes(item)) {
-      for (let lineIdx = 0; lineIdx < etude.textLines.length; lineIdx++) {
-        const line = etude.textLines[lineIdx];
-        let searchFrom = 0;
-        let range = findCitationRange(line, quote, searchFrom);
-        while (range) {
-          highlights.push({
-            lineIndex: lineIdx,
-            start: range.start,
-            end: range.end,
-            text: line.slice(range.start, range.end),
-            color: 'active',
-            citationId: item.id,
-          });
-          searchFrom = range.end;
-          range = findCitationRange(line, quote, searchFrom);
-        }
+      const ranges = findCitationRangesInPoem(etude.textLines, quote, item.verses, item.procede);
+      for (const r of ranges) {
+        const line = etude.textLines[r.lineIndex];
+        highlights.push({
+          lineIndex: r.lineIndex,
+          start: r.start,
+          end: r.end,
+          text: line ? line.slice(r.start, r.end) : '',
+          color: 'active',
+          citationId: item.id,
+        });
       }
     }
 

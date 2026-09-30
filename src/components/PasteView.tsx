@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Clipboard, Eye, EyeOff, ArrowRight, BookOpen, Target, Layers, Wand2, RefreshCw } from 'lucide-react';
 import { EtudeLineaire } from '../types/etude';
 import { parseStudyText } from '../utils/textParser';
+import { checkEtudeQuality } from '../utils/qualityChecks';
+import QualityWarnings from './QualityWarnings';
 
 interface PasteViewProps {
   onSave: (etude: EtudeLineaire) => void;
@@ -107,6 +109,8 @@ export default function PasteView({ onSave, onCancel }: PasteViewProps) {
     onSave(preview);
   }, [preview, onSave]);
 
+  const qualityWarnings = useMemo(() => preview ? checkEtudeQuality(preview) : [], [preview]);
+
   const citationCount = preview?.movements.reduce((acc, m) => acc + m.citations.length, 0) ?? 0;
 
   return (
@@ -197,6 +201,10 @@ export default function PasteView({ onSave, onCancel }: PasteViewProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {preview && qualityWarnings.length > 0 && (
+        <QualityWarnings warnings={qualityWarnings} compact />
       )}
 
       {/* Error banner */}

@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { EtudeLineaire, CitationItem } from '../types/etude';
 import { getCitationQuotes } from '../utils/citationUtils';
+import { recordReview } from '../utils/reviewStorage';
 import {
   Target, Trophy, CheckCircle2, XCircle, HelpCircle,
   RotateCcw, ChevronRight, BookOpen, Microscope, Tag
@@ -9,6 +10,7 @@ import { ALL_PROCEDES } from '../utils/procedeDetector';
 
 interface QuizViewProps {
   etude: EtudeLineaire;
+  analysisId?: string;
   onComplete: () => void;
 }
 
@@ -189,7 +191,8 @@ function PoemDisplay({ lines, title, selectable = false, renderLine, onLineMouse
   );
 }
 
-export default function QuizView({ etude, onComplete }: QuizViewProps) {
+export default function QuizView({ etude, analysisId, onComplete }: QuizViewProps) {
+  const currentAnalysisId = analysisId || etude.id || 'default';
   const allCitations = useMemo(
     () => etude.movements.flatMap(movement => movement.citations),
     [etude.movements]
@@ -309,19 +312,51 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
     if (state.mode !== 'locate' || state.userAnswered || !state.selectionValidated || !state.selectedText) return;
 
     const matchedCitation = validateLocateAnswer(state.selectedFragments, procede);
+    const isCorrect = matchedCitation !== null;
+    const citationToRecord = matchedCitation || allCitations.find(c =>
+      state.selectedFragments.every(f => getCitationQuotes(c).map(normalize).includes(normalize(f)))
+    );
+
+    if (citationToRecord) {
+      recordReview({
+        analysisId: currentAnalysisId,
+        citationId: citationToRecord.id,
+        movementId: citationToRecord.movementId,
+        procede: citationToRecord.procede,
+        mode: 'quiz-locate',
+        correct: isCorrect,
+        selectedAnswer: procede,
+        expectedAnswer: citationToRecord.procede,
+        rating: isCorrect ? 'good' : 'again',
+      });
+    }
+
     setState(previous => ({
       ...previous,
       selectedProcede: procede,
       matchedCitation,
-      isCorrect: matchedCitation !== null,
+      isCorrect,
       userAnswered: true,
-      score: matchedCitation ? previous.score + 1 : previous.score,
+      score: isCorrect ? previous.score + 1 : previous.score,
     }));
-  }, [state.mode, state.userAnswered, state.selectionValidated, state.selectedText, validateLocateAnswer]);
+  }, [state.mode, state.userAnswered, state.selectionValidated, state.selectedText, validateLocateAnswer, allCitations, state.selectedFragments, currentAnalysisId]);
 
   const submitIdentify = useCallback((procede: string) => {
     if (!current || state.mode !== 'identify' || state.userAnswered) return;
     const correct = procedeMatches(procede, current.procede);
+
+    recordReview({
+      analysisId: currentAnalysisId,
+      citationId: current.id,
+      movementId: current.movementId,
+      procede: current.procede,
+      mode: 'quiz-identify',
+      correct,
+      selectedAnswer: procede,
+      expectedAnswer: current.procede,
+      rating: correct ? 'good' : 'again',
+    });
+
     setState(previous => ({
       ...previous,
       selectedProcede: procede,
@@ -329,7 +364,7 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
       userAnswered: true,
       score: correct ? previous.score + 1 : previous.score,
     }));
-  }, [current, state.mode, state.userAnswered]);
+  }, [current, state.mode, state.userAnswered, currentAnalysisId]);
 
   const nextQuestion = useCallback(() => {
     setState(previous => {
@@ -616,26 +651,44 @@ export default function QuizView({ etude, onComplete }: QuizViewProps) {
           )}
 
           {state.userAnswered && (
-            <div className={`mt-2 p-4 rounded-xl border ${state.isCorrect ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
-              <div className="flex items-center gap-2 mb-2">
-                {state.isCorrect
-                  ? <><CheckCircle2 size={18} className="text-emerald-400" /><span className="font-semibold text-emerald-300">Bonne réponse !</span></>
-                  : <><XCircle size={18} className="text-red-400" /><span className="font-semibold text-red-300">Raté</span></>}
+            <div className={`mt-2 p-4 rounded-xl border space-y-3 ${state.isCorrect ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {state.isCorrect
+                    ? <><CheckCircle2 size={18} className="text-emerald-400" /><span className="font-semibold text-emerald-300">Excellente réponse !</span></>
+                    : <><XCircle size={18} className="text-red-400" /><span className="font-semibold text-red-300">Réponse incorrecte</span></>}
+                </div>
+                <span className="text-xs text-slate-400">
+                  {state.mode === 'identify' ? 'Mode Identification' : 'Mode Localisation'}
+                </span>
               </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <div className="p-2.5 rounded-lg bg-slate-800/60 border border-white/5 space-y-1">
+                  <span className="text-slate-500 font-semibold block">Votre choix :</span>
+                  <span className={state.isCorrect ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'}>
+                    {state.selectedProcede || 'Aucun procédé sélectionné'}
+                  </span>
+                </div>
+                <div className="p-2.5 rounded-lg bg-slate-800/60 border border-white/5 space-y-1">
+                  <span className="text-slate-500 font-semibold block">Procédé attendu :</span>
+                  <span className="text-emerald-400 font-bold">
+                    {state.mode === 'identify' ? current?.procede : (state.matchedCitation?.procede || 'Procédé non identifié')}
+                  </span>
+                </div>
+              </div>
+
               {state.mode === 'locate' && state.matchedCitation && (
-                <div className="text-sm text-slate-300 mb-2">Citation reconnue : « {state.matchedCitation.citation} »</div>
-              )}
-              <div className="text-sm text-slate-300 leading-relaxed">
-                <strong className="text-slate-100">Interprétation :</strong><br />
-                {state.mode === 'identify' ? current?.interpretation : state.matchedCitation?.interpretation ?? 'Aucune correspondance trouvée dans cette analyse.'}
-              </div>
-              {!state.isCorrect && (
-                <div className="mt-2 text-sm text-red-300/80">
-                  {state.mode === 'identify'
-                    ? <>La bonne réponse était : <strong>{current?.procede}</strong></>
-                    : <>La bonne réponse était : <strong>{state.matchedCitation?.procede}</strong></>}
+                <div className="text-xs text-slate-300 bg-slate-800/40 p-2.5 rounded-lg border border-white/5">
+                  <span className="text-slate-500 font-semibold block mb-0.5">Citation associée :</span>
+                  « {state.matchedCitation.citation} »
                 </div>
               )}
+
+              <div className="text-xs text-slate-300 leading-relaxed bg-slate-800/40 p-2.5 rounded-lg border border-white/5">
+                <strong className="text-amber-300 block mb-1">Explication & Interprétation littéraire :</strong>
+                {state.mode === 'identify' ? current?.interpretation : (state.matchedCitation?.interpretation ?? 'Consultez la fiche d’étude pour réviser la portée de cette citation.')}
+              </div>
             </div>
           )}
 

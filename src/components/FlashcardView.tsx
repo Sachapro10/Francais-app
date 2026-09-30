@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { EtudeLineaire, CitationItem } from '../types/etude';
+import { recordReview, getItemKey, loadReviewStore } from '../utils/reviewStorage';
 import {
   Layers, Eye, EyeOff, ChevronLeft, ChevronRight,
   CheckCircle2, RotateCcw, Shuffle, Flame
@@ -7,6 +8,7 @@ import {
 
 interface FlashcardViewProps {
   etude: EtudeLineaire;
+  analysisId?: string;
 }
 
 interface StudyStreak {
@@ -79,7 +81,8 @@ function getProcedeGradient(proc: string): string {
   return 'from-indigo-500 to-purple-600';
 }
 
-export default function FlashcardView({ etude }: FlashcardViewProps) {
+export default function FlashcardView({ etude, analysisId }: FlashcardViewProps) {
+  const currentAnalysisId = analysisId || etude.id || 'default';
   const allCitations = useMemo(
     () => etude.movements.flatMap(m => m.citations),
     [etude.movements]
@@ -97,7 +100,18 @@ export default function FlashcardView({ etude }: FlashcardViewProps) {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [isInterpretationRevealed, setIsInterpretationRevealed] = useState(false);
-  const [knownCards, setKnownCards] = useState<Set<string>>(new Set());
+  const [knownCards, setKnownCards] = useState<Set<string>>(() => {
+    const store = loadReviewStore();
+    const set = new Set<string>();
+    allCitations.forEach(c => {
+      const key = getItemKey(currentAnalysisId, c.id);
+      const state = store.srs[key];
+      if (state && state.box >= 3) {
+        set.add(c.id);
+      }
+    });
+    return set;
+  });
   const [streakDays, setStreakDays] = useState<string[]>(readStreakDays);
 
   const card = cards[currentIdx];
@@ -155,15 +169,26 @@ export default function FlashcardView({ etude }: FlashcardViewProps) {
   }, [cards]);
 
   const markKnown = useCallback((known: boolean) => {
+    if (card) {
+      recordReview({
+        analysisId: currentAnalysisId,
+        citationId: card.id,
+        movementId: card.movementId,
+        procede: card.procede,
+        mode: 'flashcard',
+        correct: known,
+        rating: known ? 'good' : 'again',
+      });
+    }
     setKnownCards(prev => {
-      const next = new Set(prev);
-      if (known && card) next.add(card.id);
-      else if (card) next.delete(card.id);
-      return next;
+      const nextSet = new Set(prev);
+      if (known && card) nextSet.add(card.id);
+      else if (card) nextSet.delete(card.id);
+      return nextSet;
     });
     recordStudyDay();
     next();
-  }, [card, next, recordStudyDay]);
+  }, [card, next, recordStudyDay, currentAnalysisId]);
 
   const gradient = card ? getProcedeGradient(card.procede) : 'from-indigo-500 to-purple-600';
   const progressPct = cards.length > 0 ? ((currentIdx + 1) / cards.length) * 100 : 0;

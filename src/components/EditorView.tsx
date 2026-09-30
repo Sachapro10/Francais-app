@@ -1,6 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { EtudeLineaire, CitationItem, Movement } from '../types/etude';
 import { deriveCitationQuotes } from '../utils/citationUtils';
+import { checkEtudeQuality } from '../utils/qualityChecks';
+import QualityWarnings from './QualityWarnings';
+import ExcerptEditor from './ExcerptEditor';
 import {
   Edit3, Plus, Trash2, Save, ChevronDown, ChevronRight,
   Layers, Quote, CheckCircle2
@@ -17,6 +20,8 @@ export default function EditorView({ etude, onSave }: EditorViewProps) {
   const [expandedMovements, setExpandedMovements] = useState<Set<string>>(
     new Set(local.movements.map(m => m.id))
   );
+
+  const qualityWarnings = useMemo(() => checkEtudeQuality(local), [local]);
 
   const toggleMovement = (id: string) => {
     setExpandedMovements(prev => {
@@ -78,6 +83,20 @@ export default function EditorView({ etude, onSave }: EditorViewProps) {
     }));
   };
 
+  const updateCitationObject = (movementId: string, citationId: string, updatedCitation: CitationItem) => {
+    setLocal(l => ({
+      ...l,
+      movements: l.movements.map(m =>
+        m.id === movementId
+          ? {
+              ...m,
+              citations: m.citations.map(c => c.id === citationId ? updatedCitation : c),
+            }
+          : m
+      ),
+    }));
+  };
+
   const updateCitation = (movementId: string, citationId: string, field: keyof CitationItem, value: string) => {
     setLocal(l => ({
       ...l,
@@ -130,6 +149,8 @@ export default function EditorView({ etude, onSave }: EditorViewProps) {
           </button>
         </div>
       </div>
+
+      <QualityWarnings warnings={qualityWarnings} />
 
       {/* Meta fields */}
       <div className="wood-panel rounded-lg p-5 space-y-4">
@@ -246,6 +267,11 @@ export default function EditorView({ etude, onSave }: EditorViewProps) {
                           />
                         </div>
                       </div>
+                      <ExcerptEditor
+                        citation={citation}
+                        textLines={local.textLines}
+                        onChange={nextCitation => updateCitationObject(movement.id, citation.id, nextCitation)}
+                      />
                     </div>
                   ))}
                   <button

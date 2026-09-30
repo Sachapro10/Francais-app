@@ -14,6 +14,7 @@ import FlashcardView from './FlashcardView';
 import EditorView from './EditorView';
 import ConfettiCelebration from './ConfettiCelebration';
 import PasteView from './PasteView';
+import WeakPointsView from './WeakPointsView';
 
 interface SavedAnalysis {
   id: string;
@@ -21,6 +22,8 @@ interface SavedAnalysis {
   author?: string;
   savedAt: number; // ms timestamp
   etude: EtudeLineaire;
+  cloudId?: string;
+  isOwner?: boolean;
 }
 
 interface CloudAnalysis {
@@ -65,32 +68,77 @@ export default function App({}: {}) {
   const [libraryTab, setLibraryTab] = useState<'local' | 'shared'>('local');
   const [cloudAnalyses, setCloudAnalyses] = useState<CloudAnalysis[]>([]);
   const [cloudStatus, setCloudStatus] = useState<'idle' | 'loading' | 'publishing' | 'ready' | 'error'>('idle');
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<'idle' | 'saving' | 'synced' | 'error'>('idle');
   const [cloudMessage, setCloudMessage] = useState('');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('saved');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-save current analysis on every etude change
+  // Auto-save current analysis on every etude change (local + cloud if original owner)
   useEffect(() => {
     setSaveStatus('saving');
     const timeout = setTimeout(() => {
+      let targetCloudId: string | undefined;
+      let targetIsOwner = true;
+
       setSaveAnalyses(prev => {
         const now = Date.now();
-        const existing = prev.findIndex(a => a.id === currentId);
-        if (existing >= 0) {
-          const updated = [...prev];
-          updated[existing] = { ...updated[existing], savedAt: now, etude };
-          saveAnalyses(updated);
+        const existingIdx = prev.findIndex(a => a.id === currentId);
+        let updated: SavedAnalysis[];
+        if (existingIdx >= 0) {
+          updated = [...prev];
+          const curr = updated[existingIdx];
+          targetCloudId = curr.cloudId;
+          targetIsOwner = curr.isOwner !== false;
+          updated[existingIdx] = { ...curr, title: etude.title, author: etude.author, savedAt: now, etude };
         } else {
-          const newAnalyses = [{ id: currentId, title: etude.title, author: etude.author, savedAt: now, etude }, ...prev];
-          saveAnalyses(newAnalyses);
+          targetIsOwner = true;
+          updated = [{ id: currentId, title: etude.title, author: etude.author, savedAt: now, etude, isOwner: true }, ...prev];
         }
-        return prev; // keep reference for reactivity
+        saveAnalyses(updated);
+        return updated;
       });
       setSaveStatus('saved');
+
+      // Auto-save to Supabase cloud if SUPABASE_ANON_KEY is available and is owner
+      if (SUPABASE_ANON_KEY && targetIsOwner && currentId !== 'builtin') {
+        setCloudSyncStatus('saving');
+        (async () => {
+          try {
+            if (targetCloudId) {
+              const res = await fetch(`${SHARED_ANALYSES_ENDPOINT}?id=eq.${targetCloudId}`, {
+                method: 'PATCH',
+                headers: supabaseHeaders(),
+                body: JSON.stringify({ title: etude.title, author: etude.author ?? null, etude }),
+              });
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              setCloudSyncStatus('synced');
+            } else {
+              const res = await fetch(SHARED_ANALYSES_ENDPOINT, {
+                method: 'POST',
+                headers: { ...supabaseHeaders(), Prefer: 'return=representation' },
+                body: JSON.stringify({ title: etude.title, author: etude.author ?? null, etude }),
+              });
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              const data = await res.json() as Array<{ id: string }>;
+              const newId = Array.isArray(data) && data[0]?.id ? data[0].id : null;
+              if (newId) {
+                setAnalysesList(prev => {
+                  const next = prev.map(item => item.id === currentId ? { ...item, cloudId: newId, isOwner: true } : item);
+                  saveAnalyses(next);
+                  return next;
+                });
+              }
+              setCloudSyncStatus('synced');
+            }
+          } catch {
+            setCloudSyncStatus('error');
+          }
+        })();
+      }
     }, 600);
     return () => clearTimeout(timeout);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [etude]);
+  }, [etude, currentId]);
 
   const setSaveAnalyses = useCallback((updater: (prev: SavedAnalysis[]) => SavedAnalysis[]) => {
     setAnalysesList(updater);
@@ -135,6 +183,7 @@ export default function App({}: {}) {
     { mode: 'study', label: 'Étude', icon: <BookOpen size={18} />, desc: 'Lire et réviser' },
     { mode: 'quiz', label: 'Quiz', icon: <Target size={18} />, desc: 'Tester ses connaissances' },
     { mode: 'flashcards', label: 'Cartes', icon: <Layers size={18} />, desc: 'Mémoriser les procédés' },
+    { mode: 'weakPoints', label: 'Révisions', icon: <BarChart3 size={18} />, desc: 'Tableau de révision et points faibles' },
     { mode: 'editor', label: 'Éditer', icon: <Edit3 size={18} />, desc: 'Modifier le contenu' },
     { mode: 'newText', label: 'Importer', icon: <Plus size={18} />, desc: 'Importer depuis un texte' },
   ];
@@ -144,7 +193,7 @@ export default function App({}: {}) {
     setCurrentId(id);
     setEtude(newEtude);
     setAnalysesList(prev => {
-      const updated = [{ id, title: newEtude.title, author: newEtude.author, savedAt: Date.now(), etude: newEtude }, ...prev.filter(a => a.id !== id)];
+      const updated = [{ id, title: newEtude.title, author: newEtude.author, savedAt: Date.now(), etude: newEtude, isOwner: true }, ...prev.filter(a => a.id !== id)];
       saveAnalyses(updated);
       return updated;
     });
@@ -225,7 +274,7 @@ export default function App({}: {}) {
     setEtude(analysis.etude);
     setCurrentId(localId);
     setAnalysesList(previous => {
-      const next = [{ id: localId, title: analysis.title, author: analysis.author, savedAt: Date.now(), etude: analysis.etude }, ...previous.filter(item => item.id !== localId)];
+      const next = [{ id: localId, title: analysis.title, author: analysis.author, savedAt: Date.now(), etude: analysis.etude, cloudId: analysis.id, isOwner: false }, ...previous.filter(item => item.id !== localId)];
       saveAnalyses(next);
       return next;
     });
@@ -349,7 +398,7 @@ export default function App({}: {}) {
               </button>
 
               {/* Save indicator */}
-              <div className="hidden sm:flex items-center gap-1.5 text-xs">
+              <div className="hidden sm:flex items-center gap-2 text-xs">
                 {saveStatus === 'saving' && (
                   <span className="text-slate-600">sauvegarde…</span>
                 )}
@@ -363,6 +412,16 @@ export default function App({}: {}) {
                   <span className="text-slate-700 flex items-center gap-1">
                     <CloudOff size={11} />
                     Non sauvegardé
+                  </span>
+                )}
+                {cloudSyncStatus === 'synced' && (
+                  <span className="text-emerald-400/80 flex items-center gap-1 text-[11px]" title="Auto-synchronisé sur le cloud">
+                    · Cloud sync
+                  </span>
+                )}
+                {cloudSyncStatus === 'saving' && (
+                  <span className="text-amber-400/80 flex items-center gap-1 text-[11px]">
+                    · Sync cloud…
                   </span>
                 )}
               </div>
@@ -391,8 +450,9 @@ export default function App({}: {}) {
       {/* Main content */}
       <main className={`app-main flex-1 min-h-0 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-3 sm:py-4 ${view === 'study' ? 'study-main' : ''}`}>
         {view === 'study' && <StudyView etude={etude} />}
-        {view === 'quiz' && <QuizView etude={etude} onComplete={triggerConfetti} />}
-        {view === 'flashcards' && <FlashcardView etude={etude} />}
+        {view === 'quiz' && <QuizView etude={etude} analysisId={currentId} onComplete={triggerConfetti} />}
+        {view === 'flashcards' && <FlashcardView etude={etude} analysisId={currentId} />}
+        {view === 'weakPoints' && <WeakPointsView etude={etude} analysisId={currentId} onStartReview={() => setView('quiz')} />}
         {view === 'editor' && <EditorView etude={etude} onSave={(newEtude) => { setEtude(newEtude); }} />}
         {view === 'newText' && (
           <PasteView
