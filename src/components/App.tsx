@@ -15,6 +15,7 @@ import EditorView from './EditorView';
 import ConfettiCelebration from './ConfettiCelebration';
 import PasteView from './PasteView';
 import WeakPointsView from './WeakPointsView';
+import GrammarView from './GrammarView';
 
 interface SavedAnalysis {
   id: string;
@@ -68,27 +69,16 @@ export default function App({}: {}) {
   const [libraryTab, setLibraryTab] = useState<'local' | 'shared'>('local');
   const [cloudAnalyses, setCloudAnalyses] = useState<CloudAnalysis[]>([]);
   const [cloudStatus, setCloudStatus] = useState<'idle' | 'loading' | 'publishing' | 'ready' | 'error'>('idle');
-  const [cloudSyncStatus, setCloudSyncStatus] = useState<'idle' | 'saving' | 'synced' | 'error'>('idle');
   const [cloudMessage, setCloudMessage] = useState('');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('saved');
   const [analysesList, setAnalysesList] = useState<SavedAnalysis[]>(() => loadAnalyses());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Keep a live ref to the current cloudId so the debounced auto-save always has the latest value
-  const cloudIdRef = useRef<string | undefined>(undefined);
-  useEffect(() => {
-    cloudIdRef.current = analysesList.find(a => a.id === currentId)?.cloudId;
-  }, [analysesList, currentId]);
-
-  // Auto-save current analysis on every etude change (local + cloud if original owner)
+  // Auto-save current analysis to localStorage on every etude change
   useEffect(() => {
     setSaveStatus('saving');
     const timeout = setTimeout(() => {
       const now = Date.now();
-
-      // Sync cloudId from ref before saving (in case a recent POST just returned a new cloudId)
-      const currentCloudId = cloudIdRef.current;
-
       setAnalysesList(prev => {
         const existingIdx = prev.findIndex(a => a.id === currentId);
         let updated: SavedAnalysis[];
@@ -102,47 +92,6 @@ export default function App({}: {}) {
         return updated;
       });
       setSaveStatus('saved');
-
-      // Auto-save to Supabase cloud if SUPABASE_ANON_KEY is available and is owner
-      const currentEntry = analysesList.find(a => a.id === currentId);
-      const isOwner = currentEntry?.isOwner !== false && currentId !== 'builtin';
-      if (SUPABASE_ANON_KEY && isOwner) {
-        setCloudSyncStatus('saving');
-        (async () => {
-          try {
-            if (currentCloudId) {
-              const res = await fetch(`${SHARED_ANALYSES_ENDPOINT}?id=eq.${currentCloudId}`, {
-                method: 'PATCH',
-                headers: supabaseHeaders(),
-                body: JSON.stringify({ title: etude.title, author: etude.author ?? null, etude }),
-              });
-              if (!res.ok) throw new Error(`HTTP ${res.status}`);
-              setCloudSyncStatus('synced');
-            } else {
-              const res = await fetch(SHARED_ANALYSES_ENDPOINT, {
-                method: 'POST',
-                headers: { ...supabaseHeaders(), Prefer: 'return=representation' },
-                body: JSON.stringify({ title: etude.title, author: etude.author ?? null, etude }),
-              });
-              if (!res.ok) throw new Error(`HTTP ${res.status}`);
-              const data = await res.json() as Array<{ id: string }>;
-              const newId = Array.isArray(data) && data[0]?.id ? data[0].id : null;
-              if (newId) {
-                // Immediately update both the ref AND localStorage so next edit uses PATCH
-                cloudIdRef.current = newId;
-                setAnalysesList(prev => {
-                  const next = prev.map(item => item.id === currentId ? { ...item, cloudId: newId, isOwner: true } : item);
-                  saveAnalyses(next);
-                  return next;
-                });
-              }
-              setCloudSyncStatus('synced');
-            }
-          } catch {
-            setCloudSyncStatus('error');
-          }
-        })();
-      }
     }, 600);
     return () => clearTimeout(timeout);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -185,6 +134,7 @@ export default function App({}: {}) {
     { mode: 'study', label: 'Étude', icon: <BookOpen size={18} />, desc: 'Lire et réviser' },
     { mode: 'quiz', label: 'Quiz', icon: <Target size={18} />, desc: 'Tester ses connaissances' },
     { mode: 'flashcards', label: 'Cartes', icon: <Layers size={18} />, desc: 'Mémoriser les procédés' },
+    { mode: 'grammar', label: 'Grammaire', icon: <Sparkles size={18} />, desc: 'Réviser les propositions' },
     { mode: 'weakPoints', label: 'Révisions', icon: <BarChart3 size={18} />, desc: 'Tableau de révision et points faibles' },
     { mode: 'editor', label: 'Éditer', icon: <Edit3 size={18} />, desc: 'Modifier le contenu' },
     { mode: 'newText', label: 'Importer', icon: <Plus size={18} />, desc: 'Importer depuis un texte' },
@@ -416,16 +366,6 @@ export default function App({}: {}) {
                     Non sauvegardé
                   </span>
                 )}
-                {cloudSyncStatus === 'synced' && (
-                  <span className="text-emerald-400/80 flex items-center gap-1 text-[11px]" title="Auto-synchronisé sur le cloud">
-                    · Cloud sync
-                  </span>
-                )}
-                {cloudSyncStatus === 'saving' && (
-                  <span className="text-amber-400/80 flex items-center gap-1 text-[11px]">
-                    · Sync cloud…
-                  </span>
-                )}
               </div>
 
               <nav className="wood-nav flex items-center gap-1 rounded-xl p-1">
@@ -462,6 +402,7 @@ export default function App({}: {}) {
             onCancel={() => setView('study')}
           />
         )}
+        {view === 'grammar' && <GrammarView />}
 
         {showAnalyses && (
           <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-3 sm:p-6">

@@ -42,7 +42,7 @@ export interface ReviewEvent {
   citationId: string;
   movementId?: string;
   procede?: string;
-  mode: 'quiz-identify' | 'quiz-locate' | 'flashcard';
+  mode: 'quiz-identify' | 'quiz-locate' | 'quiz-grammar' | 'flashcard';
   rating: ReviewRating;
   correct: boolean;
   selectedAnswer?: string;
@@ -90,4 +90,4 @@ export interface MatchHighlight {
   interpretation: string;
 }
 
-export type ViewMode = 'study' | 'quiz' | 'flashcards' | 'weakPoints' | 'editor' | 'newText';
+export type ViewMode = 'study' | 'quiz' | 'flashcards' | 'weakPoints' | 'editor' | 'newText' | 'grammar';
