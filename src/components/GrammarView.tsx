@@ -1,602 +1,554 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { BookOpen, ChevronLeft, ChevronRight, Eraser, Trash2, MousePointerClick, Highlighter, Eye, EyeOff, Check, X, AlertCircle } from 'lucide-react';
+import {
+  BookOpen, ChevronLeft, ChevronRight, Eraser,
+  Check, X, AlertCircle, Sparkles, MousePointer2
+} from 'lucide-react';
 import { GRAMMAR_SENTENCES, GrammarSentence } from '../utils/grammarData';
 
-interface Highlight {
-  id: string;
-  startOffset: number;
-  endOffset: number;
-  text: string;
+interface PropHighlight {
+  propIndex: number;
+  wordIndices: number[];
 }
 
-interface SentenceHighlight {
-  sentenceId: number;
-  highlights: Highlight[];
+type VerificationStep = 'highlighting' | 'select-principale' | 'classifying' | 'complete';
+
+interface CorrigeState {
+  showCorrige: boolean;
 }
 
-type SelectionMode = 'click' | 'drag';
-type VerificationStep = 'highlighting' | 'verified' | 'classifying' | 'complete';
-
-const ITEMS_PER_PAGE = 1;
 const TOTAL_PAGES = GRAMMAR_SENTENCES.length;
 
-const PROP_TYPE_COLORS: Record<string, string> = {
-  'Principale': 'bg-amber-500/30 text-amber-700 border-amber-400/50',
-  'Subordonnée relative': 'bg-blue-500/30 text-blue-700 border-blue-400/50',
-  'Subordonnée conjonctive': 'bg-emerald-500/30 text-emerald-700 border-emerald-400/50',
-  'Subordonnée participiale': 'bg-orange-500/30 text-orange-700 border-orange-400/50',
-  'Subordonnée infinitive': 'bg-purple-500/30 text-purple-700 border-purple-400/50',
-  'Indépendante': 'bg-slate-500/30 text-slate-700 border-slate-400/50',
-  'Subordonnée interrogative indirecte': 'bg-pink-500/30 text-pink-700 border-pink-400/50',
-};
+const PROP_COLORS = [
+  'bg-amber-400 text-amber-950 border-amber-500',
+  'bg-blue-400 text-blue-950 border-blue-500',
+  'bg-emerald-400 text-emerald-950 border-emerald-500',
+  'bg-purple-400 text-purple-950 border-purple-500',
+];
 
-// Citation highlight color - consistent for all marked citations
-const CITATION_HIGHLIGHT_COLOR = 'bg-amber-200 text-amber-900 border-amber-400';
+const PROP_GHOST_COLORS = [
+  'bg-amber-400/20 text-amber-200 border-amber-500/30',
+  'bg-blue-400/20 text-blue-200 border-blue-500/30',
+  'bg-emerald-400/20 text-emerald-200 border-emerald-500/30',
+  'bg-purple-400/20 text-purple-200 border-purple-500/30',
+];
 
 export default function GrammarView() {
   const [currentPage, setCurrentPage] = useState(1);
-  const [mode, setMode] = useState<SelectionMode>('drag');
-  const [allHighlights, setAllHighlights] = useState<SentenceHighlight[]>([]);
-  const [selectionStart, setSelectionStart] = useState<{ sentenceId: number; offset: number } | null>(null);
-  const [selectionEnd, setSelectionEnd] = useState<{ sentenceId: number; offset: number } | null>(null);
+  const [activePropIndex, setActivePropIndex] = useState(0);
+  const [highlights, setHighlights] = useState<PropHighlight[]>([]);
   const [verificationStep, setVerificationStep] = useState<VerificationStep>('highlighting');
   const [verificationMessage, setVerificationMessage] = useState<string>('');
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
-  const [principaleChoice, setPrincipaleChoice] = useState<string | null>(null);
-  const [secondaryTypes, setSecondaryTypes] = useState<Record<string, string>>({});
-  const dragStartRef = useRef<{ sentenceId: number; wordIndex: number } | null>(null);
-  const isDraggingRef = useRef(false);
+  const [secondaryTypes, setSecondaryTypes] = useState<Record<number, string>>({});
+  const [selectedPrincipaleIndex, setSelectedPrincipaleIndex] = useState<number | null>(null);
+  const [showCorrige, setShowCorrige] = useState(false);
 
-  const currentSentences = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return GRAMMAR_SENTENCES.slice(start, start + ITEMS_PER_PAGE);
+  const isDraggingRef = useRef(false);
+  const dragStartIdxRef = useRef<number | null>(null);
+
+  const currentSentence = useMemo(() => {
+    return GRAMMAR_SENTENCES[currentPage - 1];
   }, [currentPage]);
 
-  const currentSentence = currentSentences[0];
+  const words = useMemo(() => {
+    return currentSentence.rawText.split(/\s+/).filter(w => w.length > 0);
+  }, [currentSentence]);
 
   // Reset state when changing pages
   useEffect(() => {
-    setAllHighlights([]);
+    setHighlights([]);
+    setActivePropIndex(0);
     setVerificationStep('highlighting');
     setVerificationMessage('');
     setIsCorrect(null);
-    setPrincipaleChoice(null);
     setSecondaryTypes({});
+    setSelectedPrincipaleIndex(null);
+    setShowCorrige(false);
   }, [currentPage]);
 
-  const getHighlightsForSentence = useCallback((sentenceId: number): Highlight[] => {
-    return allHighlights.find(h => h.sentenceId === sentenceId)?.highlights ?? [];
-  }, [allHighlights]);
+  const toggleWord = useCallback((wordIdx: number) => {
+    if (verificationStep !== 'highlighting') return;
 
-  const getSentenceText = useCallback((sentence: GrammarSentence): string => {
-    return sentence.rawText;
-  }, []);
+    setHighlights(prev => {
+      const existingProp = prev.find(h => h.propIndex === activePropIndex);
 
-  const getWordRanges = useCallback((text: string, highlights: Highlight[]) => {
-    // Split by spaces to get words only (no space tokens)
-    const words = text.split(/\s+/).filter(word => word.length > 0);
+      // Remove word from any other proposition it might be in
+      let next = prev.map(h => ({
+        ...h,
+        wordIndices: h.wordIndices.filter(idx => idx !== wordIdx)
+      })).filter(h => h.wordIndices.length > 0);
 
-    if (highlights.length === 0) {
-      return words.map((word, i) => ({
-        text: word,
-        index: i,
-        highlightId: undefined as string | undefined
-      }));
-    }
-
-    const sorted = [...highlights].sort((a, b) => a.startOffset - b.startOffset);
-    const ranges: { text: string; index: number; highlightId?: string }[] = [];
-
-    // Calculate word positions in original text
-    let currentPos = 0;
-    words.forEach((word, wordIndex) => {
-      // Find where this word starts in the original text
-      const wordStart = text.indexOf(word, currentPos);
-      const wordEnd = wordStart + word.length;
-
-      const h = sorted.find(hl =>
-        (wordStart >= hl.startOffset && wordStart < hl.endOffset) ||
-        (wordEnd > hl.startOffset && wordEnd <= hl.endOffset) ||
-        (hl.startOffset >= wordStart && hl.startOffset < wordEnd)
-      );
-
-      ranges.push({
-        text: word,
-        index: wordIndex,
-        highlightId: h?.id
-      });
-
-      currentPos = wordEnd;
+      if (existingProp) {
+        const isAlreadyInCurrent = existingProp.wordIndices.includes(wordIdx);
+        return next.map(h => h.propIndex === activePropIndex
+          ? {
+              ...h,
+              wordIndices: isAlreadyInCurrent
+                ? h.wordIndices.filter(idx => idx !== wordIdx)
+                : [...h.wordIndices, wordIdx].sort((a, b) => a - b)
+            }
+          : h
+        ).filter(h => h.wordIndices.length > 0);
+      } else {
+        return [...next, { propIndex: activePropIndex, wordIndices: [wordIdx] }];
+      }
     });
+  }, [activePropIndex, verificationStep]);
 
-    return ranges;
-  }, []);
-
-  const handleMouseDown = useCallback((sentenceId: number, wordIndex: number, event: React.MouseEvent) => {
-    if (mode !== 'drag') return;
-    event.preventDefault();
+  const handleMouseDown = (idx: number) => {
+    if (verificationStep !== 'highlighting') return;
     isDraggingRef.current = true;
-    dragStartRef.current = { sentenceId, wordIndex };
-    setSelectionStart({ sentenceId, offset: wordIndex });
-    setSelectionEnd({ sentenceId, offset: wordIndex });
-  }, [mode]);
+    dragStartIdxRef.current = idx;
+    toggleWord(idx);
+  };
 
-  const handleMouseEnter = useCallback((sentenceId: number, wordIndex: number) => {
-    if (mode !== 'drag' || !isDraggingRef.current || !dragStartRef.current) return;
-    if (dragStartRef.current.sentenceId !== sentenceId) return;
-    setSelectionEnd({ sentenceId, offset: wordIndex });
-  }, [mode]);
+  const handleMouseEnter = (idx: number) => {
+    if (!isDraggingRef.current || verificationStep !== 'highlighting' || dragStartIdxRef.current === null) return;
 
-  const handleMouseUp = useCallback((sentenceId: number) => {
-    if (mode !== 'drag') return;
-    if (!isDraggingRef.current || !dragStartRef.current || !selectionStart || !selectionEnd) {
-      isDraggingRef.current = false;
-      setSelectionStart(null);
-      setSelectionEnd(null);
-      return;
-    }
+    // Add all words between start and current
+    const start = Math.min(dragStartIdxRef.current, idx);
+    const end = Math.max(dragStartIdxRef.current, idx);
 
-    const startWord = Math.min(selectionStart.offset, selectionEnd.offset);
-    const endWord = Math.max(selectionStart.offset, selectionEnd.offset);
+    setHighlights(prev => {
+      const newRange = Array.from({ length: end - start + 1 }, (_, i) => start + i);
 
-    const sentence = GRAMMAR_SENTENCES.find(s => s.id === sentenceId);
-    if (!sentence) return;
+      // Remove these words from all other propositions
+      let next = prev.map(h => ({
+        ...h,
+        wordIndices: h.wordIndices.filter(wIdx => !newRange.includes(wIdx))
+      })).filter(h => h.wordIndices.length > 0);
 
-    const sentenceText = sentence.rawText;
-    const words = sentenceText.split(' ');
-    let startOffset = 0;
-    for (let i = 0; i < startWord; i++) {
-      startOffset += words[i].length + 1;
-    }
-    let endOffset = 0;
-    for (let i = 0; i <= endWord; i++) {
-      endOffset += words[i].length + 1;
-    }
-    endOffset = Math.min(endOffset, sentenceText.length);
-
-    const newHighlight: Highlight = {
-      id: `h_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      startOffset,
-      endOffset,
-      text: sentenceText.slice(startOffset, endOffset).trim(),
-    };
-
-    setAllHighlights(prev => {
-      const existing = prev.find(h => h.sentenceId === sentenceId);
-      if (existing) {
-        return prev.map(h => h.sentenceId === sentenceId
-          ? { ...h, highlights: [...h.highlights.filter(hl => hl.id !== newHighlight.id), newHighlight] }
+      const existingProp = next.find(h => h.propIndex === activePropIndex);
+      if (existingProp) {
+        return next.map(h => h.propIndex === activePropIndex
+          ? {
+              ...h,
+              wordIndices: Array.from(new Set([...h.wordIndices, ...newRange])).sort((a, b) => a - b)
+            }
           : h
         );
+      } else {
+        return [...next, { propIndex: activePropIndex, wordIndices: newRange }];
       }
-      return [...prev, { sentenceId, highlights: [newHighlight] }];
     });
-
-    isDraggingRef.current = false;
-    setSelectionStart(null);
-    setSelectionEnd(null);
-  }, [mode, selectionStart, selectionEnd]);
+  };
 
   useEffect(() => {
-    const handleGlobalMouseUp = (e: MouseEvent) => {
-      if (isDraggingRef.current && dragStartRef.current) {
-        handleMouseUp(dragStartRef.current.sentenceId);
-      }
+    const handleGlobalMouseUp = () => {
+      isDraggingRef.current = false;
+      dragStartIdxRef.current = null;
     };
     window.addEventListener('mouseup', handleGlobalMouseUp);
     return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
-  }, [handleMouseUp]);
-
-  const removeHighlight = useCallback((sentenceId: number, highlightId: string) => {
-    setAllHighlights(prev =>
-      prev.map(h => h.sentenceId === sentenceId
-        ? { ...h, highlights: h.highlights.filter(hl => hl.id !== highlightId) }
-        : h
-      ).filter(h => h.highlights.length > 0)
-    );
   }, []);
 
-  const clearAllHighlights = useCallback((sentenceId: number) => {
-    setAllHighlights(prev => prev.filter(h => h.sentenceId !== sentenceId));
-  }, []);
+  const getWordColor = (idx: number) => {
+    const highlight = highlights.find(h => h.wordIndices.includes(idx));
+    if (highlight) return PROP_COLORS[highlight.propIndex];
+    return 'text-slate-300 hover:bg-white/5';
+  };
 
-  const clearAll = useCallback(() => {
-    setAllHighlights([]);
-    setVerificationStep('highlighting');
-    setVerificationMessage('');
-    setIsCorrect(null);
-    setPrincipaleChoice(null);
-    setSecondaryTypes({});
-  }, []);
-
-  const getDragSelectionRange = useCallback((): { start: number; end: number } | null => {
-    if (!selectionStart || !selectionEnd) return null;
-    if (selectionStart.sentenceId !== selectionEnd.sentenceId) return null;
-    return { start: Math.min(selectionStart.offset, selectionEnd.offset), end: Math.max(selectionStart.offset, selectionEnd.offset) };
-  }, [selectionStart, selectionEnd]);
-
-  const verifyHighlights = useCallback(() => {
-    if (!currentSentence) return;
-
-    const highlights = getHighlightsForSentence(currentSentence.id);
+  const verifyHighlights = () => {
     const expectedCount = currentSentence.propositions.length;
+    const actualCount = highlights.length;
 
-    if (highlights.length !== expectedCount) {
+    if (actualCount === 0) {
       setIsCorrect(false);
-      setVerificationMessage(`Incorrect. Il y a ${expectedCount} proposition${expectedCount > 1 ? 's' : ''} dans cette phrase.`);
+      setVerificationMessage("Surlignez au moins une proposition.");
       return;
     }
 
-    // Check if each highlight matches a proposition (allowing some flexibility in exact text match)
-    const matched = highlights.every(hl => {
-      return currentSentence.propositions.some(prop => {
-        const hlNormalized = hl.text.trim().toLowerCase();
-        const propNormalized = prop.text.trim().toLowerCase();
-        return hlNormalized === propNormalized ||
-               propNormalized.includes(hlNormalized) ||
-               hlNormalized.includes(propNormalized);
-      });
+    // Sort highlights by their first word index to match data order
+    const sortedHighlights = [...highlights].sort((a, b) => a.wordIndices[0] - b.wordIndices[0]);
+
+    if (actualCount !== expectedCount) {
+      setIsCorrect(false);
+      setVerificationMessage(`Incorrect. Il y a ${expectedCount} propositions dans cette phrase.`);
+      return;
+    }
+
+    // Verification logic: check if word subsets match
+    const allMatched = sortedHighlights.every((hl, i) => {
+      const hlText = hl.wordIndices.map(idx => words[idx]).join(' ').toLowerCase().replace(/[.,;]/g, '');
+      const expectedText = currentSentence.propositions[i].text.toLowerCase().replace(/[.,;]/g, '');
+      return hlText.includes(expectedText) || expectedText.includes(hlText);
     });
 
-    if (matched) {
+    if (allMatched) {
       setIsCorrect(true);
-      setVerificationMessage('Correct ! Maintenant, identifiez quelle proposition est la principale.');
-      setVerificationStep('verified');
+      setVerificationMessage("Bravo ! Maintenant, identifiez la proposition principale.");
+      setVerificationStep('select-principale');
     } else {
       setIsCorrect(false);
-      setVerificationMessage('Les propositions surlignées ne correspondent pas exactement. Réessayez.');
+      setVerificationMessage("Le découpage n'est pas tout à fait correct. Réessayez.");
     }
-  }, [currentSentence, getHighlightsForSentence]);
+  };
 
-  const selectPrincipale = useCallback((highlightId: string) => {
-    if (verificationStep !== 'verified') return;
-
-    const highlights = getHighlightsForSentence(currentSentence.id);
-    const selectedHighlight = highlights.find(h => h.id === highlightId);
-    if (!selectedHighlight) return;
-
-    const principaleProp = currentSentence.propositions.find(p => p.type === 'Principale');
-    if (!principaleProp) {
-      setVerificationMessage('Cette phrase n\'a pas de proposition principale.');
-      setVerificationStep('complete');
+  const verifyPrincipale = () => {
+    if (selectedPrincipaleIndex === null) {
+      setIsCorrect(false);
+      setVerificationMessage("Sélectionnez la proposition principale.");
       return;
     }
 
-    const hlNormalized = selectedHighlight.text.trim().toLowerCase();
-    const propNormalized = principaleProp.text.trim().toLowerCase();
-    const isCorrectChoice = hlNormalized === propNormalized ||
-                           propNormalized.includes(hlNormalized) ||
-                           hlNormalized.includes(propNormalized);
+    // Find which proposition is the Principale in the expected data
+    const sortedHighlights = [...highlights].sort((a, b) => a.wordIndices[0] - b.wordIndices[0]);
+    const principaleIndex = sortedHighlights.findIndex((_, i) =>
+      currentSentence.propositions[i].type === 'Principale'
+    );
 
-    if (isCorrectChoice) {
-      setPrincipaleChoice(highlightId);
-      setVerificationMessage('Correct ! Maintenant, classifiez les autres propositions.');
+    if (principaleIndex === -1) {
+      // No Principale in this sentence, move to classifying anyway
+      setVerificationStep('classifying');
+      setIsCorrect(true);
+      setVerificationMessage("Parfait ! Maintenant classifiez les autres propositions.");
+      return;
+    }
+
+    const expectedPrincipalePropIndex = sortedHighlights[principaleIndex].propIndex;
+
+    if (selectedPrincipaleIndex === expectedPrincipalePropIndex) {
+      setIsCorrect(true);
+      setVerificationMessage("Parfait ! Maintenant classifiez les autres propositions.");
       setVerificationStep('classifying');
     } else {
-      setVerificationMessage('Incorrect. Cette proposition n\'est pas la principale. Réessayez.');
+      setIsCorrect(false);
+      setVerificationMessage("Ce n'est pas la proposition principale. Réessayez.");
     }
-  }, [verificationStep, currentSentence, getHighlightsForSentence]);
+  };
 
-  const classifySecondary = useCallback((highlightId: string, type: string) => {
-    setSecondaryTypes(prev => ({ ...prev, [highlightId]: type }));
-  }, []);
-
-  const verifyClassification = useCallback(() => {
-    const highlights = getHighlightsForSentence(currentSentence.id);
-    const secondaryHighlights = highlights.filter(h => h.id !== principaleChoice);
-
+  const verifyClassification = () => {
+    const sortedHighlights = [...highlights].sort((a, b) => a.wordIndices[0] - b.wordIndices[0]);
     let allCorrect = true;
-    for (const hl of secondaryHighlights) {
-      const userType = secondaryTypes[hl.id];
-      if (!userType) {
-        allCorrect = false;
-        break;
+
+    for (let i = 0; i < sortedHighlights.length; i++) {
+      const propIndex = sortedHighlights[i].propIndex;
+      const expectedType = currentSentence.propositions[i].type;
+
+      // Skip the selected Principale
+      if (propIndex === selectedPrincipaleIndex && expectedType === 'Principale') {
+        continue;
       }
 
-      const matchingProp = currentSentence.propositions.find(prop => {
-        const hlNormalized = hl.text.trim().toLowerCase();
-        const propNormalized = prop.text.trim().toLowerCase();
-        return hlNormalized === propNormalized ||
-               propNormalized.includes(hlNormalized) ||
-               hlNormalized.includes(propNormalized);
-      });
+      const userType = secondaryTypes[propIndex];
 
-      if (!matchingProp || matchingProp.type !== userType) {
+      if (userType !== expectedType) {
         allCorrect = false;
         break;
       }
     }
 
     if (allCorrect) {
-      setVerificationMessage('Parfait ! Toutes les classifications sont correctes.');
+      setIsCorrect(true);
+      setVerificationMessage("Parfait ! Toutes les propositions sont correctement identifiées.");
       setVerificationStep('complete');
     } else {
-      setVerificationMessage('Certaines classifications sont incorrectes. Vérifiez vos réponses.');
+      setIsCorrect(false);
+      setVerificationMessage("Certaines classifications sont incorrectes.");
     }
-  }, [currentSentence, getHighlightsForSentence, principaleChoice, secondaryTypes]);
+  };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-700">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white font-serif-literary flex items-center gap-2">
-            <BookOpen size={22} className="text-amber-400" />
-            Révision de Grammaire
+          <h2 className="text-3xl font-bold text-white font-serif-literary flex items-center gap-3">
+            <Sparkles size={28} className="text-amber-400 animate-pulse" />
+            Analyse Grammaticale
           </h2>
-          <p className="text-xs text-slate-500 mt-1">Identifiez et classifiez les propositions</p>
+          <p className="text-sm text-slate-400 mt-1">Découpez la phrase en propositions et identifiez leur nature.</p>
         </div>
-      </div>
 
-      {/* Progress bar */}
-      <div className="wood-panel p-4 rounded-xl">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-slate-400">Phrase {currentPage} sur {TOTAL_PAGES}</span>
-          <span className="text-xs text-slate-400">{Math.round((currentPage / TOTAL_PAGES) * 100)}%</span>
-        </div>
-        <div className="w-full bg-slate-700 rounded-full h-2">
-          <div
-            className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
-            style={{ width: `${(currentPage / TOTAL_PAGES) * 100}%` }}
-          />
-        </div>
-      </div>
-
-      {/* Instructions based on step */}
-      <div className="wood-panel p-4 rounded-xl">
-        <div className="flex items-start gap-3">
-          <AlertCircle size={18} className="text-amber-400 mt-0.5 shrink-0" />
-          <div className="text-sm text-slate-300">
-            {verificationStep === 'highlighting' && (
-              <p>
-                <strong className="text-white">Étape 1 :</strong> Surlignez toutes les propositions de cette phrase en glissant sur les mots, puis cliquez sur <strong className="text-amber-400">Vérifier</strong>.
-              </p>
-            )}
-            {verificationStep === 'verified' && (
-              <p>
-                <strong className="text-white">Étape 2 :</strong> Cliquez sur la proposition qui est la <strong className="text-amber-400">principale</strong>.
-              </p>
-            )}
-            {verificationStep === 'classifying' && (
-              <p>
-                <strong className="text-white">Étape 3 :</strong> Sélectionnez le type de chaque proposition secondaire, puis cliquez sur <strong className="text-amber-400">Vérifier la classification</strong>.
-              </p>
-            )}
-            {verificationStep === 'complete' && (
-              <p>
-                <strong className="text-emerald-400">Exercice terminé !</strong> Passez à la phrase suivante.
-              </p>
-            )}
+        <div className="flex items-center gap-4 bg-slate-800/50 p-2 rounded-2xl border border-white/5">
+          <div className="flex flex-col items-end px-2">
+            <span className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Progression</span>
+            <span className="text-sm font-mono text-white">{currentPage} / {TOTAL_PAGES}</span>
+          </div>
+          <div className="w-32 h-2 bg-slate-700 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-indigo-500 transition-all duration-1000 ease-out"
+              style={{ width: `${(currentPage / TOTAL_PAGES) * 100}%` }}
+            />
           </div>
         </div>
       </div>
 
-      {/* Verification message */}
-      {verificationMessage && (
-        <div className={`wood-panel p-4 rounded-xl border-2 animate-[soft-pop_0.3s_ease-out] ${
-          isCorrect === true ? 'border-emerald-500/50 bg-emerald-500/10' :
-          isCorrect === false ? 'border-red-500/50 bg-red-500/10' :
-          'border-amber-500/50 bg-amber-500/10'
-        }`}>
-          <div className="flex items-center gap-2">
-            {isCorrect === true && <Check size={18} className="text-emerald-400 animate-[soft-pop_0.2s_ease-out]" />}
-            {isCorrect === false && <X size={18} className="text-red-400 animate-[soft-pop_0.2s_ease-out]" />}
-            {isCorrect === null && <AlertCircle size={18} className="text-amber-400 animate-[soft-pop_0.2s_ease-out]" />}
-            <p className={`text-sm font-medium ${
-              isCorrect === true ? 'text-emerald-300' :
-              isCorrect === false ? 'text-red-300' :
-              'text-amber-300'
-            }`}>
-              {verificationMessage}
-            </p>
-          </div>
-        </div>
-      )}
+      {/* Main Study Area */}
+      <div className="space-y-6">
+          {/* Sentence Box */}
+          <div className="wood-panel p-8 sm:p-12 rounded-3xl border border-white/10 relative overflow-hidden group shadow-2xl">
+            <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
 
-      {/* Main sentence display */}
-      {currentSentence && (
-        <div className="wood-panel p-8 rounded-xl border border-white/5 space-y-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-4 min-w-0 flex-1">
-              <span className="bg-slate-700 text-slate-400 text-sm font-mono w-12 h-12 rounded-lg flex items-center justify-center shrink-0">
-                {currentSentence.id}
-              </span>
-              <div className="flex-1">
-                <span className="text-slate-200 leading-relaxed text-2xl font-serif-literary break-words block">
-                  {(() => {
-                    const highlights = getHighlightsForSentence(currentSentence.id);
-                    const wordRanges = getWordRanges(getSentenceText(currentSentence), highlights);
-                    const dragRange = mode === 'drag' && selectionStart?.sentenceId === currentSentence.id && selectionEnd?.sentenceId === currentSentence.id
-                      ? getDragSelectionRange()
-                      : null;
-
-                    return wordRanges.map((item, idx) => {
-                      const isSelected = dragRange && item.index >= dragRange.start && item.index <= dragRange.end;
-                      const isHighlighted = !!item.highlightId;
-                      const isPrincipale = item.highlightId === principaleChoice;
-                      const highlightColor = isPrincipale
-                        ? 'bg-emerald-300/90 text-emerald-950 rounded-sm px-1'
-                        : isHighlighted
-                        ? 'bg-amber-200/80 text-amber-950 rounded-sm px-1'
-                        : '';
-
-                      return (
-                        <span key={`${item.index}-${idx}`}>
-                          <span
-                            className={`
-                              inline-block py-0.5 transition-all duration-200 ease-out
-                              ${highlightColor}
-                              ${isSelected ? 'bg-indigo-400/50 text-white rounded-sm px-1 scale-105' : ''}
-                              ${verificationStep === 'highlighting' && mode === 'drag' && !isHighlighted ? 'cursor-crosshair select-none hover:bg-white/5' : 'select-text'}
-                              ${verificationStep === 'verified' && isHighlighted ? 'cursor-pointer hover:ring-2 hover:ring-emerald-400 hover:scale-105 active:scale-95' : ''}
-                              ${isHighlighted && !isPrincipale ? 'animate-[highlight_0.4s_ease-out]' : ''}
-                              ${isPrincipale ? 'animate-[principale_0.5s_ease-out] shadow-lg shadow-emerald-500/20' : ''}
-                            `}
-                            onMouseDown={(e) => {
-                              if (verificationStep === 'highlighting') {
-                                handleMouseDown(currentSentence.id, item.index, e);
-                              }
-                            }}
-                            onMouseEnter={() => {
-                              if (verificationStep === 'highlighting') {
-                                handleMouseEnter(currentSentence.id, item.index);
-                              }
-                            }}
-                            onMouseUp={() => {
-                              if (verificationStep === 'highlighting') {
-                                handleMouseUp(currentSentence.id);
-                              }
-                            }}
-                            onClick={() => {
-                              if (verificationStep === 'verified' && item.highlightId) {
-                                selectPrincipale(item.highlightId);
-                              }
-                            }}
-                          >
-                            {item.text}
-                          </span>
-                          {idx < wordRanges.length - 1 && ' '}
-                        </span>
-                      );
-                    });
-                  })()}
+            <div className="relative z-10">
+              <div className="flex items-center gap-2 mb-6 opacity-50">
+                <MousePointer2 size={14} className="text-indigo-400" />
+                <span className="text-[10px] uppercase tracking-widest font-bold">
+                  {verificationStep === 'highlighting' ? 'Surlignez les mots' : 'Découpage validé'}
                 </span>
               </div>
+
+              <div className="flex flex-wrap gap-x-3 gap-y-4 text-2xl sm:text-3xl font-serif-literary leading-relaxed">
+                {words.map((word, idx) => (
+                  <span
+                    key={idx}
+                    onMouseDown={() => handleMouseDown(idx)}
+                    onMouseEnter={() => handleMouseEnter(idx)}
+                    className={`
+                      px-2 py-1 rounded-lg transition-all duration-200 cursor-pointer select-none border-b-2 border-transparent
+                      ${getWordColor(idx)}
+                      ${verificationStep !== 'highlighting' ? 'cursor-default' : 'hover:scale-110'}
+                    `}
+                  >
+                    {word}
+                  </span>
+                ))}
+              </div>
             </div>
-            {verificationStep === 'highlighting' && (
-              <button
-                onClick={() => clearAllHighlights(currentSentence.id)}
-                className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all shrink-0"
-                title="Effacer tous les surlignages"
-              >
-                <Eraser size={14} />
-                Effacer
-              </button>
+
+            {/* Verification Overlay/Message */}
+            {verificationMessage && (
+              <div className="mt-8 space-y-4">
+                <div className={`
+                  p-4 rounded-2xl flex items-center gap-3 animate-in slide-in-from-top-2 duration-300
+                  ${isCorrect === true ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                    isCorrect === false ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                    'bg-amber-500/10 text-amber-400 border border-amber-500/20'}
+                `}>
+                  {isCorrect === true ? <Check size={18} /> : isCorrect === false ? <X size={18} /> : <AlertCircle size={18} />}
+                  <p className="text-sm font-medium flex-1">{verificationMessage}</p>
+                  {isCorrect === false && (
+                    <button
+                      onClick={() => setShowCorrige(!showCorrige)}
+                      className="text-xs px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 transition-colors font-bold"
+                    >
+                      {showCorrige ? 'Masquer' : 'Voir le corrigé'}
+                    </button>
+                  )}
+                </div>
+
+                {/* Corrigé Section */}
+                {showCorrige && isCorrect === false && (
+                  <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-6 space-y-4 animate-in slide-in-from-top-2 duration-300">
+                    <h3 className="text-sm font-bold text-indigo-400 flex items-center gap-2">
+                      <BookOpen size={16} />
+                      Corrigé
+                    </h3>
+
+                    <div className="space-y-3">
+                      <div className="text-xs text-slate-400">
+                        <span className="font-bold">Phrase :</span> {currentSentence.bracketedText}
+                      </div>
+
+                      <div className="space-y-2">
+                        {currentSentence.propositions.map((prop, idx) => (
+                          <div key={idx} className="flex items-start gap-3 text-sm">
+                            <span className="text-indigo-400 font-bold shrink-0">Prop. {idx + 1}:</span>
+                            <div className="flex-1">
+                              <div className="text-slate-300 italic">« {prop.text} »</div>
+                              <div className="text-emerald-400 font-bold text-xs mt-1">→ {prop.type}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {currentSentence.ruleExplanation && (
+                        <div className="pt-3 border-t border-white/5">
+                          <p className="text-xs text-slate-400">
+                            <span className="font-bold text-amber-400">Règle :</span> {currentSentence.ruleExplanation}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
-          {/* Show highlighted propositions */}
-          {(() => {
-            const highlights = getHighlightsForSentence(currentSentence.id);
-            if (highlights.length === 0) return null;
-
-            return (
-              <div className="space-y-3 pt-4 border-t border-white/5 animate-[soft-pop_0.3s_ease-out]">
-                <p className="text-xs text-slate-500 font-semibold">Propositions surlignées :</p>
-                <div className="space-y-2">
-                  {highlights.map((hl, idx) => {
-                    const isPrincipale = hl.id === principaleChoice;
-                    const userType = secondaryTypes[hl.id];
-
-                    return (
-                      <div
-                        key={hl.id}
-                        className="flex items-center gap-3 animate-[soft-pop_0.3s_ease-out]"
-                        style={{ animationDelay: `${idx * 50}ms` }}
-                      >
-                        <button
-                          onClick={() => {
-                            if (verificationStep === 'verified') {
-                              selectPrincipale(hl.id);
-                            }
-                          }}
-                          disabled={verificationStep !== 'verified'}
-                          className={`flex-1 inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-all duration-300 ease-out ${
-                            isPrincipale
-                              ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-300 shadow-lg'
-                              : verificationStep === 'verified'
-                              ? 'bg-amber-500/20 border-amber-400/50 text-amber-300 hover:bg-amber-500/30 hover:border-amber-400 cursor-pointer hover:shadow-md'
-                              : 'bg-amber-500/20 border-amber-400/50 text-amber-300 cursor-default'
-                          } ${verificationStep === 'verified' && !isPrincipale ? 'hover:scale-[1.02] hover:-translate-y-0.5' : ''} ${isPrincipale ? 'scale-[1.02]' : ''}`}
-                        >
-                          {isPrincipale && <Check size={14} className="text-emerald-400 animate-[soft-pop_0.2s_ease-out]" />}
-                          «&nbsp;{hl.text}&nbsp;»
-                        </button>
-
-                        {verificationStep === 'classifying' && !isPrincipale && (
-                          <select
-                            value={userType || ''}
-                            onChange={(e) => classifySecondary(hl.id, e.target.value)}
-                            className="px-3 py-2 rounded-lg bg-slate-700 text-slate-300 text-sm border border-slate-600 focus:border-indigo-500 focus:outline-none transition-all duration-200 hover:border-indigo-400"
-                          >
-                            <option value="">-- Choisir le type --</option>
-                            <option value="Indépendante">Indépendante</option>
-                            <option value="Subordonnée relative">Subordonnée relative</option>
-                            <option value="Subordonnée conjonctive">Subordonnée conjonctive</option>
-                            <option value="Subordonnée complétive">Subordonnée complétive</option>
-                            <option value="Subordonnée circonstancielle">Subordonnée circonstancielle</option>
-                            <option value="Subordonnée participiale">Subordonnée participiale</option>
-                            <option value="Subordonnée infinitive">Subordonnée infinitive</option>
-                            <option value="Subordonnée interrogative indirecte">Subordonnée interrogative indirecte</option>
-                            <option value="Subordonnée temporelle">Subordonnée temporelle</option>
-                            <option value="Subordonnée causale">Subordonnée causale</option>
-                            <option value="Subordonnée finale">Subordonnée finale</option>
-                            <option value="Subordonnée concessive">Subordonnée concessive</option>
-                            <option value="Subordonnée conditionnelle">Subordonnée conditionnelle</option>
-                            <option value="Subordonnée comparative">Subordonnée comparative</option>
-                            <option value="Subordonnée consécutive">Subordonnée consécutive</option>
-                          </select>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+          {/* Proposition Selector Buttons */}
+          {verificationStep === 'highlighting' && (
+            <div className="space-y-4">
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Choix de la proposition</h3>
+              <div className="flex flex-wrap justify-center gap-3">
+                {[0, 1, 2, 3].map(idx => (
+                  <button
+                    key={idx}
+                    onClick={() => setActivePropIndex(idx)}
+                    className={`
+                      flex items-center justify-between gap-3 px-6 py-3 rounded-xl border-2 transition-all duration-300
+                      ${activePropIndex === idx
+                        ? `${PROP_COLORS[idx]} scale-105 shadow-lg`
+                        : 'bg-slate-800/40 border-transparent text-slate-400 hover:bg-slate-800 hover:text-slate-200'}
+                    `}
+                  >
+                    <span className="font-bold text-sm">Proposition {idx + 1}</span>
+                    {highlights.find(h => h.propIndex === idx) && <Check size={14} />}
+                  </button>
+                ))}
               </div>
-            );
-          })()}
+              <button
+                onClick={() => setHighlights([])}
+                className="w-full flex items-center justify-center gap-2 py-2 text-xs text-slate-500 hover:text-red-400 transition-colors"
+              >
+                <Eraser size={12} /> Réinitialiser tout
+              </button>
+            </div>
+          )}
 
-          {/* Action buttons */}
-          <div className="flex items-center justify-center gap-3 pt-4">
+          {/* Select Principale Step */}
+          {verificationStep === 'select-principale' && (
+            <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
+              <h3 className="text-sm font-bold text-indigo-400 text-center">Quelle est la proposition principale ?</h3>
+              <div className="grid gap-4">
+                {[...highlights].sort((a, b) => a.wordIndices[0] - b.wordIndices[0]).map((hl, i) => (
+                  <button
+                    key={hl.propIndex}
+                    onClick={() => setSelectedPrincipaleIndex(hl.propIndex)}
+                    className={`flex flex-col sm:flex-row items-center gap-4 p-4 rounded-2xl border-2 transition-all duration-300 ${
+                      selectedPrincipaleIndex === hl.propIndex
+                        ? 'bg-indigo-500/20 border-indigo-500 scale-105'
+                        : 'bg-slate-800/40 border-white/5 hover:border-indigo-500/50'
+                    }`}
+                  >
+                    <div className={`px-3 py-1 rounded-lg font-bold text-xs shrink-0 ${PROP_COLORS[hl.propIndex]}`}>
+                      Prop. {i + 1}
+                    </div>
+                    <div className="flex-1 italic text-slate-300 text-sm w-full">
+                      « {hl.wordIndices.map(idx => words[idx]).join(' ')} »
+                    </div>
+                    {selectedPrincipaleIndex === hl.propIndex && (
+                      <Check size={18} className="text-indigo-400" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Classification Area */}
+          {verificationStep === 'classifying' && (
+            <div className="grid gap-4 animate-in slide-in-from-bottom-4 duration-500">
+              {[...highlights].sort((a, b) => a.wordIndices[0] - b.wordIndices[0]).map((hl, i) => {
+                const isPrincipale = hl.propIndex === selectedPrincipaleIndex;
+                return (
+                  <div key={hl.propIndex} className="flex flex-col sm:flex-row items-center gap-4 bg-slate-800/40 p-4 rounded-2xl border border-white/5">
+                    <div className={`px-3 py-1 rounded-lg font-bold text-xs shrink-0 ${PROP_COLORS[hl.propIndex]}`}>
+                      Prop. {i + 1}
+                    </div>
+                    <div className="flex-1 italic text-slate-300 text-sm truncate w-full">
+                      « {hl.wordIndices.map(idx => words[idx]).join(' ')} »
+                    </div>
+                    {isPrincipale ? (
+                      <div className="bg-indigo-500/20 border border-indigo-500 text-indigo-400 text-xs rounded-xl px-4 py-2 font-bold">
+                        Principale
+                      </div>
+                    ) : (
+                      <select
+                        value={secondaryTypes[hl.propIndex] || ''}
+                        onChange={(e) => setSecondaryTypes(prev => ({ ...prev, [hl.propIndex]: e.target.value }))}
+                        className="bg-slate-900 border border-white/10 text-slate-200 text-xs rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-indigo-500 transition-all w-full sm:w-auto"
+                      >
+                        <option value="">Type de proposition</option>
+                        <option value="Subordonnée relative">Subordonnée relative</option>
+                        <option value="Subordonnée complétive">Subordonnée complétive</option>
+                        <option value="Subordonnée circonstancielle">Subordonnée circonstancielle</option>
+                        <option value="Juxtaposées">Juxtaposées</option>
+                        <option value="Coordonnées">Coordonnées</option>
+                      </select>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Complete Step - Show Final Result */}
+          {verificationStep === 'complete' && (
+            <div className="grid gap-4 animate-in slide-in-from-bottom-4 duration-500">
+              {[...highlights].sort((a, b) => a.wordIndices[0] - b.wordIndices[0]).map((hl, i) => {
+                const isPrincipale = hl.propIndex === selectedPrincipaleIndex;
+                const displayType = isPrincipale ? 'Principale' : secondaryTypes[hl.propIndex];
+                return (
+                  <div key={hl.propIndex} className="flex flex-col sm:flex-row items-center gap-4 bg-slate-800/40 p-4 rounded-2xl border border-emerald-500/20">
+                    <div className={`px-3 py-1 rounded-lg font-bold text-xs shrink-0 ${PROP_COLORS[hl.propIndex]}`}>
+                      Prop. {i + 1}
+                    </div>
+                    <div className="flex-1 italic text-slate-300 text-sm truncate w-full">
+                      « {hl.wordIndices.map(idx => words[idx]).join(' ')} »
+                    </div>
+                    <div className="bg-emerald-500/20 border border-emerald-500 text-emerald-400 text-xs rounded-xl px-4 py-2 font-bold">
+                      {displayType}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Action Button */}
+          <div className="flex justify-center pt-4">
             {verificationStep === 'highlighting' && (
               <button
                 onClick={verifyHighlights}
-                disabled={getHighlightsForSentence(currentSentence.id).length === 0}
-                className="copper-action flex items-center gap-2 px-6 py-3 rounded-lg text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105 active:scale-95 hover:shadow-lg"
+                className="copper-action px-10 py-4 rounded-2xl text-white font-bold text-lg shadow-xl hover:scale-105 active:scale-95 transition-all"
               >
-                <Check size={18} />
-                Vérifier
+                Vérifier le découpage
               </button>
             )}
-
+            {verificationStep === 'select-principale' && (
+              <button
+                onClick={verifyPrincipale}
+                className="copper-action px-10 py-4 rounded-2xl text-white font-bold text-lg shadow-xl hover:scale-105 active:scale-95 transition-all"
+              >
+                Confirmer la principale
+              </button>
+            )}
             {verificationStep === 'classifying' && (
               <button
                 onClick={verifyClassification}
-                disabled={
-                  getHighlightsForSentence(currentSentence.id).filter(h => h.id !== principaleChoice).length !==
-                  Object.keys(secondaryTypes).length
-                }
-                className="copper-action flex items-center gap-2 px-6 py-3 rounded-lg text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105 active:scale-95 hover:shadow-lg"
+                className="copper-action px-10 py-4 rounded-2xl text-white font-bold text-lg shadow-xl hover:scale-105 active:scale-95 transition-all"
               >
-                <Check size={18} />
-                Vérifier la classification
+                Vérifier l'analyse
               </button>
             )}
+            {verificationStep === 'complete' && (
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-8 py-4 rounded-2xl bg-slate-800 text-slate-400 hover:text-white transition-all disabled:opacity-20"
+                >
+                  Précédent
+                </button>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(TOTAL_PAGES, p + 1))}
+                  disabled={currentPage === TOTAL_PAGES}
+                  className="copper-action px-10 py-4 rounded-2xl text-white font-bold transition-all disabled:opacity-20"
+                >
+                  Phrase suivante
+                </button>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+      </div>
 
-      {/* Navigation */}
-      <div className="flex items-center justify-between pt-2">
+      {/* Footer Navigation */}
+      <div className="flex justify-between items-center pt-8 border-t border-white/5 opacity-50">
         <button
           onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+          className="flex items-center gap-2 text-xs hover:text-white transition-colors"
           disabled={currentPage === 1}
-          className="flex items-center gap-2 px-4 py-3 rounded-lg bg-slate-700 text-slate-300 hover:text-white hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-sm font-medium"
         >
-          <ChevronLeft size={18} />
-          Phrase précédente
+          <ChevronLeft size={14} /> Phrase précédente
         </button>
-
-        <span className="text-sm text-slate-400">
-          {currentPage} / {TOTAL_PAGES}
-        </span>
-
+        <span className="text-[10px] font-mono tracking-widest">GRAMMAR_ENGINE_V2</span>
         <button
           onClick={() => setCurrentPage(p => Math.min(TOTAL_PAGES, p + 1))}
+          className="flex items-center gap-2 text-xs hover:text-white transition-colors"
           disabled={currentPage === TOTAL_PAGES}
-          className="flex items-center gap-2 px-4 py-3 rounded-lg bg-slate-700 text-slate-300 hover:text-white hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-sm font-medium"
         >
-          Phrase suivante
-          <ChevronRight size={18} />
+          Phrase suivante <ChevronRight size={14} />
         </button>
       </div>
     </div>
