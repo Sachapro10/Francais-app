@@ -203,7 +203,7 @@ export default function FlashcardView({ etude, analysisId }: FlashcardViewProps)
         </blockquote>
         {card?.verses && card.verses.length > 0 && (
           <div className="text-sm text-slate-500 italic">
-            Vers {card.verses.join(‘, ‘)}
+            Vers {card.verses.join(', ')}
           </div>
         )}
       </div>
