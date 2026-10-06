@@ -1,6 +1,6 @@
 export interface PropositionDetail {
   text: string;
-  type: 'Principale' | 'Juxtaposition' | 'Coordination' | 'Subordonnée relative' | 'Complétive' | 'Circonstancielle';
+  type: 'Principale' | 'Juxtaposition' | 'Coordination' | 'Subordonnée relative' | 'Subordonnée conjonctive' | 'Subordonnée interrogative indirecte' | 'Subordonnée participiale' | 'Subordonnée infinitive' | 'Indépendante' | 'Complétive' | 'Circonstancielle';
 }
 
 export interface GrammarSentence {
