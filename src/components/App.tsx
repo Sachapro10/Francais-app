@@ -64,7 +64,7 @@ export default function App({}: {}) {
   const [showConfetti, setShowConfetti] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
   const [showAnalyses, setShowAnalyses] = useState(false);
-  const [startupChoice, setStartupChoice] = useState<'cloud' | 'new' | 'local' | null>(saved.length === 0 ? null : 'local');
+  const [startupChoice, setStartupChoice] = useState<'cloud' | 'new' | 'local' | 'grammar' | null>(saved.length === 0 ? null : 'local');
   const [cloudSearch, setCloudSearch] = useState('');
   const [libraryTab, setLibraryTab] = useState<'local' | 'shared'>('local');
   const [cloudAnalyses, setCloudAnalyses] = useState<CloudAnalysis[]>([]);
@@ -263,7 +263,7 @@ export default function App({}: {}) {
               <h1 className="font-serif-literary text-3xl font-bold text-white sm:text-4xl">Votre espace d’étude</h1>
               <p className="mt-2 text-sm text-slate-500 sm:text-base">Choisissez comment commencer votre prochaine analyse.</p>
             </div>
-            <div className="mt-8 grid gap-4 md:grid-cols-3">
+            <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <button onClick={(e) => { e.stopPropagation(); setStartupChoice('cloud'); setLibraryTab('shared'); void loadCloudAnalyses(); }} className={`wood-panel rounded-2xl border p-5 text-left transition-all hover:-translate-y-1 hover:border-amber-500/50 ${startupChoice === 'cloud' ? 'border-amber-500/50' : ''}`}>
                 <Download size={22} className="mb-4 text-amber-600" />
                 <h2 className="font-semibold text-white">Télécharger du cloud</h2>
@@ -278,6 +278,11 @@ export default function App({}: {}) {
                 <FolderOpen size={22} className="mb-4 text-emerald-700" />
                 <h2 className="font-semibold text-white">Charger depuis le local</h2>
                 <p className="mt-2 text-sm text-slate-500">Ouvrez une analyse déjà sauvegardée sur cet appareil.</p>
+              </button>
+              <button onClick={(e) => { e.stopPropagation(); setStartupChoice('grammar'); setShowIntro(false); setView('grammar'); }} className="wood-panel rounded-2xl border p-5 text-left transition-all hover:-translate-y-1 hover:border-amber-500/50">
+                <Sparkles size={22} className="mb-4 text-indigo-500" />
+                <h2 className="font-semibold text-white">Révision de Grammaire</h2>
+                <p className="mt-2 text-sm text-slate-500">Entraînez-vous à identifier les propositions.</p>
               </button>
             </div>
             {startupChoice === 'cloud' && (
