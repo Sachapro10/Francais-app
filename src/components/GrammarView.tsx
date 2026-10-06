@@ -373,15 +373,15 @@ export default function GrammarView() {
 
       {/* Verification message */}
       {verificationMessage && (
-        <div className={`wood-panel p-4 rounded-xl border-2 ${
+        <div className={`wood-panel p-4 rounded-xl border-2 animate-[soft-pop_0.3s_ease-out] ${
           isCorrect === true ? 'border-emerald-500/50 bg-emerald-500/10' :
           isCorrect === false ? 'border-red-500/50 bg-red-500/10' :
           'border-amber-500/50 bg-amber-500/10'
         }`}>
           <div className="flex items-center gap-2">
-            {isCorrect === true && <Check size={18} className="text-emerald-400" />}
-            {isCorrect === false && <X size={18} className="text-red-400" />}
-            {isCorrect === null && <AlertCircle size={18} className="text-amber-400" />}
+            {isCorrect === true && <Check size={18} className="text-emerald-400 animate-[soft-pop_0.2s_ease-out]" />}
+            {isCorrect === false && <X size={18} className="text-red-400 animate-[soft-pop_0.2s_ease-out]" />}
+            {isCorrect === null && <AlertCircle size={18} className="text-amber-400 animate-[soft-pop_0.2s_ease-out]" />}
             <p className={`text-sm font-medium ${
               isCorrect === true ? 'text-emerald-300' :
               isCorrect === false ? 'text-red-300' :
@@ -424,11 +424,13 @@ export default function GrammarView() {
                         <span key={`${item.index}-${idx}`}>
                           <span
                             className={`
-                              inline-block py-0.5 transition-all
+                              inline-block py-0.5 transition-all duration-200 ease-out
                               ${highlightColor}
-                              ${isSelected ? 'bg-indigo-400/50 text-white rounded-sm px-1' : ''}
-                              ${verificationStep === 'highlighting' && mode === 'drag' && !isHighlighted ? 'cursor-crosshair select-none' : 'select-text'}
-                              ${verificationStep === 'verified' && isHighlighted ? 'cursor-pointer hover:ring-2 hover:ring-emerald-400' : ''}
+                              ${isSelected ? 'bg-indigo-400/50 text-white rounded-sm px-1 scale-105' : ''}
+                              ${verificationStep === 'highlighting' && mode === 'drag' && !isHighlighted ? 'cursor-crosshair select-none hover:bg-white/5' : 'select-text'}
+                              ${verificationStep === 'verified' && isHighlighted ? 'cursor-pointer hover:ring-2 hover:ring-emerald-400 hover:scale-105 active:scale-95' : ''}
+                              ${isHighlighted && !isPrincipale ? 'animate-[highlight_0.4s_ease-out]' : ''}
+                              ${isPrincipale ? 'animate-[principale_0.5s_ease-out] shadow-lg shadow-emerald-500/20' : ''}
                             `}
                             onMouseDown={(e) => {
                               if (verificationStep === 'highlighting') {
@@ -479,15 +481,19 @@ export default function GrammarView() {
             if (highlights.length === 0) return null;
 
             return (
-              <div className="space-y-3 pt-4 border-t border-white/5">
+              <div className="space-y-3 pt-4 border-t border-white/5 animate-[soft-pop_0.3s_ease-out]">
                 <p className="text-xs text-slate-500 font-semibold">Propositions surlignées :</p>
                 <div className="space-y-2">
-                  {highlights.map(hl => {
+                  {highlights.map((hl, idx) => {
                     const isPrincipale = hl.id === principaleChoice;
                     const userType = secondaryTypes[hl.id];
 
                     return (
-                      <div key={hl.id} className="flex items-center gap-3">
+                      <div
+                        key={hl.id}
+                        className="flex items-center gap-3 animate-[soft-pop_0.3s_ease-out]"
+                        style={{ animationDelay: `${idx * 50}ms` }}
+                      >
                         <button
                           onClick={() => {
                             if (verificationStep === 'verified') {
@@ -495,15 +501,15 @@ export default function GrammarView() {
                             }
                           }}
                           disabled={verificationStep !== 'verified'}
-                          className={`flex-1 inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-all ${
+                          className={`flex-1 inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-all duration-300 ease-out ${
                             isPrincipale
-                              ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-300'
+                              ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-300 shadow-lg'
                               : verificationStep === 'verified'
-                              ? 'bg-amber-500/20 border-amber-400/50 text-amber-300 hover:bg-amber-500/30 hover:border-amber-400 cursor-pointer'
+                              ? 'bg-amber-500/20 border-amber-400/50 text-amber-300 hover:bg-amber-500/30 hover:border-amber-400 cursor-pointer hover:shadow-md'
                               : 'bg-amber-500/20 border-amber-400/50 text-amber-300 cursor-default'
-                          } ${verificationStep === 'verified' && !isPrincipale ? 'hover:scale-[1.02]' : ''}`}
+                          } ${verificationStep === 'verified' && !isPrincipale ? 'hover:scale-[1.02] hover:-translate-y-0.5' : ''} ${isPrincipale ? 'scale-[1.02]' : ''}`}
                         >
-                          {isPrincipale && <Check size={14} className="text-emerald-400" />}
+                          {isPrincipale && <Check size={14} className="text-emerald-400 animate-[soft-pop_0.2s_ease-out]" />}
                           «&nbsp;{hl.text}&nbsp;»
                         </button>
 
@@ -511,7 +517,7 @@ export default function GrammarView() {
                           <select
                             value={userType || ''}
                             onChange={(e) => classifySecondary(hl.id, e.target.value)}
-                            className="px-3 py-2 rounded-lg bg-slate-700 text-slate-300 text-sm border border-slate-600 focus:border-indigo-500 focus:outline-none"
+                            className="px-3 py-2 rounded-lg bg-slate-700 text-slate-300 text-sm border border-slate-600 focus:border-indigo-500 focus:outline-none transition-all duration-200 hover:border-indigo-400"
                           >
                             <option value="">-- Choisir le type --</option>
                             <option value="Indépendante">Indépendante</option>
@@ -545,7 +551,7 @@ export default function GrammarView() {
               <button
                 onClick={verifyHighlights}
                 disabled={getHighlightsForSentence(currentSentence.id).length === 0}
-                className="copper-action flex items-center gap-2 px-6 py-3 rounded-lg text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="copper-action flex items-center gap-2 px-6 py-3 rounded-lg text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105 active:scale-95 hover:shadow-lg"
               >
                 <Check size={18} />
                 Vérifier
@@ -559,7 +565,7 @@ export default function GrammarView() {
                   getHighlightsForSentence(currentSentence.id).filter(h => h.id !== principaleChoice).length !==
                   Object.keys(secondaryTypes).length
                 }
-                className="copper-action flex items-center gap-2 px-6 py-3 rounded-lg text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="copper-action flex items-center gap-2 px-6 py-3 rounded-lg text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105 active:scale-95 hover:shadow-lg"
               >
                 <Check size={18} />
                 Vérifier la classification

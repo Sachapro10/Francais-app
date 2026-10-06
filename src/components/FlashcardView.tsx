@@ -196,7 +196,27 @@ export default function FlashcardView({ etude, analysisId }: FlashcardViewProps)
   const frontCard = (
     <div className="p-8 h-full flex flex-col">
       <div className="text-center space-y-6 flex-1 flex flex-col items-center justify-center">
-        <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Procédé à mémoriser</div>
+        <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Citation</div>
+        <div className="text-3xl">[cite]</div>
+        <blockquote className="text-lg text-slate-100 leading-relaxed max-w-sm">
+          {card?.citation}
+        </blockquote>
+        {card?.verses && card.verses.length > 0 && (
+          <div className="text-sm text-slate-500 italic">
+            Vers {card.verses.join(‘, ‘)}
+          </div>
+        )}
+      </div>
+      <div className="text-center text-slate-500 text-sm flex items-center justify-center gap-2 mt-4">
+        <Eye size={14} /> Cliquez pour voir le proc&#233;d&#233;
+      </div>
+    </div>
+  );
+
+  const backCard = (
+    <div className="p-8 h-full flex flex-col">
+      <div className="text-center space-y-6 flex-1 flex flex-col items-center justify-center">
+        <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Proc&#233;d&#233; &#224; m&#233;moriser</div>
         <div className="text-3xl">[proc]</div>
         <div className="flashcard-procede text-xl font-bold text-[#a95f43]">
           {card?.procede}
@@ -214,7 +234,7 @@ export default function FlashcardView({ etude, analysisId }: FlashcardViewProps)
               }}
               className="text-xs text-slate-500 hover:text-slate-700 underline underline-offset-2"
             >
-              Masquer l’interprétation
+              Masquer l&#8217;interpr&#233;tation
             </button>
           </div>
         ) : (
@@ -226,32 +246,12 @@ export default function FlashcardView({ etude, analysisId }: FlashcardViewProps)
             }}
             className="copper-action px-4 py-2 rounded-lg text-white text-sm font-medium"
           >
-            Voir l’interprétation
+            Voir l&#8217;interpr&#233;tation
           </button>
         )}
       </div>
       <div className="text-center text-slate-500 text-sm flex items-center justify-center gap-2 mt-4">
-        <Eye size={14} /> Cliquez pour voir la citation
-      </div>
-    </div>
-  );
-
-  const backCard = (
-    <div className="p-8 h-full flex flex-col">
-      <div className="text-center space-y-6 flex-1 flex flex-col items-center justify-center">
-        <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Citation associée</div>
-        <div className="text-3xl">[cite]</div>
-        <blockquote className="text-lg text-slate-100 leading-relaxed max-w-sm">
-          {card?.citation}
-        </blockquote>
-        {card?.verses && card.verses.length > 0 && (
-          <div className="text-sm text-slate-500 italic">
-            Vers {card.verses.join(', ')}
-          </div>
-        )}
-      </div>
-      <div className="text-center text-slate-500 text-sm flex items-center justify-center gap-2 mt-4">
-        <EyeOff size={14} /> Cliquez pour voir le procédé
+        <EyeOff size={14} /> Cliquez pour voir la citation
       </div>
     </div>
   );
@@ -315,7 +315,7 @@ export default function FlashcardView({ etude, analysisId }: FlashcardViewProps)
               flip();
             }
           }}
-          aria-label={isFlipped ? 'Retourner la carte pour voir la citation' : 'Retourner la carte pour voir le procédé'}
+          aria-label={isFlipped ? 'Retourner la carte pour voir la citation' : 'Retourner la carte pour voir le proc&#233;d&#233;'}
         >
           <div className="flashcard-inner">
             <div className="flashcard-face flashcard-front wood-panel rounded-lg border border-white/10 overflow-hidden">

@@ -512,7 +512,14 @@ export default function QuizView({ etude, analysisId, onComplete }: QuizViewProp
     ranges.forEach((range, index) => {
       if (range.start < cursor) return;
       if (range.start > cursor) parts.push(<span key={`text-${index}`}>{line.slice(cursor, range.start)}</span>);
-      parts.push(<mark key={`mark-${index}`} className="rounded bg-amber-300/70 px-1 text-[#34271f] ring-2 ring-amber-500/50">{line.slice(range.start, range.end)}</mark>);
+      parts.push(
+        <mark
+          key={`mark-${index}`}
+          className="rounded bg-amber-300/90 px-1.5 py-0.5 text-[#34271f] ring-2 ring-amber-500/50 animate-[highlight_0.4s_ease-out] hover:bg-amber-300 hover:scale-105 transition-all duration-200 inline-block shadow-sm"
+        >
+          {line.slice(range.start, range.end)}
+        </mark>
+      );
       cursor = range.end;
     });
     if (cursor < line.length) parts.push(<span key="text-end">{line.slice(cursor)}</span>);
@@ -574,25 +581,33 @@ export default function QuizView({ etude, analysisId, onComplete }: QuizViewProp
                 <button
                   onClick={validateSelectedFragments}
                   disabled={state.selectedFragments.length === 0 || state.selectionValidated}
-                  className="copper-action px-4 py-2 rounded-lg text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="copper-action px-4 py-2 rounded-lg text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105 active:scale-95 hover:shadow-lg"
                 >
                   {state.selectionValidated ? 'Extraits validés' : 'Ajouter / valider un extrait'}
                 </button>
                 {!state.selectionValidated && state.selectedFragments.length > 0 && (
-                  <button onClick={clearSelectedFragments} className="text-xs text-slate-500 hover:text-red-600">Effacer les extraits</button>
+                  <button onClick={clearSelectedFragments} className="text-xs text-slate-500 hover:text-red-600 transition-colors duration-200">Effacer les extraits</button>
                 )}
                 <span className={`text-xs ${state.selectionError ? 'text-red-600' : 'text-slate-500'}`}>
                   {state.selectionError || (state.selectionValidated ? 'Choisissez maintenant un procédé.' : 'Sélectionnez plusieurs mots séparés si nécessaire, puis validez.')}
                 </span>
               </div>
               {state.selectedFragments.length > 0 && !state.selectionValidated && (
-                <div className="flex flex-wrap gap-2">
-                  {state.selectedFragments.map((fragment, index) => <span key={`${fragment}-${index}`} className="rounded-full bg-amber-500/15 px-2.5 py-1 text-xs text-amber-800">{fragment}</span>)}
+                <div className="flex flex-wrap gap-2 animate-[soft-pop_0.3s_ease-out]">
+                  {state.selectedFragments.map((fragment, index) => (
+                    <span
+                      key={`${fragment}-${index}`}
+                      className="rounded-full bg-amber-500/15 px-2.5 py-1 text-xs text-amber-800 animate-[soft-pop_0.2s_ease-out] hover:bg-amber-500/25 transition-all duration-200"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                      {fragment}
+                    </span>
+                  ))}
                 </div>
               )}
             </div>
             {state.selectionValidated && (
-              <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700">
+              <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 animate-[soft-pop_0.3s_ease-out]">
                 Citation validée : « {state.selectedText} »
               </div>
             )}
@@ -626,16 +641,17 @@ export default function QuizView({ etude, analysisId, onComplete }: QuizViewProp
           </div>
 
           <div className={`grid gap-2 mt-2 ${state.mode === 'identify' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'}`}>
-            {(state.mode === 'identify' ? state.identifyOptions : allProcedes).map(procede => (
+            {(state.mode === 'identify' ? state.identifyOptions : allProcedes).map((procede, idx) => (
               <button
                 key={procede}
                 onClick={() => state.mode === 'identify' ? submitIdentify(procede) : submitLocate(procede)}
                 disabled={state.userAnswered || (state.mode === 'locate' && !state.selectionValidated)}
-                className={`text-left px-4 py-3 rounded-xl border text-sm font-medium transition-all duration-200 ${getButtonClass(procede)}`}
+                className={`text-left px-4 py-3 rounded-xl border text-sm font-medium transition-all duration-200 hover:scale-[1.02] active:scale-95 ${getButtonClass(procede)}`}
+                style={!state.userAnswered ? { animationDelay: `${idx * 30}ms` } : {}}
               >
                 <span className="flex items-center gap-2">
-                  {state.userAnswered && getButtonClass(procede).includes('emerald') && <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />}
-                  {state.userAnswered && state.selectedProcede === procede && !getButtonClass(procede).includes('emerald') && <XCircle size={14} className="text-red-400 shrink-0" />}
+                  {state.userAnswered && getButtonClass(procede).includes('emerald') && <CheckCircle2 size={14} className="text-emerald-400 shrink-0 animate-[soft-pop_0.2s_ease-out]" />}
+                  {state.userAnswered && state.selectedProcede === procede && !getButtonClass(procede).includes('emerald') && <XCircle size={14} className="text-red-400 shrink-0 animate-[soft-pop_0.2s_ease-out]" />}
                   {procede}
                 </span>
               </button>
