@@ -172,6 +172,7 @@ function findProcedure(line: string, searchFrom = 0): { start: number; end: numb
 
 function extractVerses(line: string): number[] {
   const verses: number[] = [];
+  // Match patterns like: (v.1), (vers 1), (v. 1-3), (vers 1-3)
   const versePattern = /\(\s*(?:v|vers|verset)\s*\.?\s*(\d+)(?:\s*[-–—]\s*(\d+))?\s*\)/gi;
 
   for (const match of line.matchAll(versePattern)) {
@@ -201,7 +202,7 @@ function cleanQuote(text: string): string {
     .trim();
 }
 
-function parseCitationLine(line: string): {
+function parseCitationLine(line: string, poemLines: string[] = []): {
   quote: string;
   quotes: string[];
   verses: number[];
@@ -251,6 +252,18 @@ function parseCitationLine(line: string): {
     quote = quotedParts.join(' / ');
   }
 
+  // If there's no explicit quote but we have verse references and poem text,
+  // expand "vers 1" to mean the entire first verse from the poem
+  if (!quote && verses.length > 0 && poemLines.length > 0) {
+    const verseTexts = verses
+      .filter(v => v > 0 && v <= poemLines.length)
+      .map(v => poemLines[v - 1].trim())
+      .filter(Boolean);
+    if (verseTexts.length > 0) {
+      quote = verseTexts.join(' / ');
+    }
+  }
+
   return {
     quote,
     quotes: quotedParts,
@@ -297,7 +310,7 @@ function isCitationStart(line: string, parsed: ReturnType<typeof parseCitationLi
     || /^quand\s+/i.test(trimmed);
 }
 
-function parseCitationsInBlock(blockText: string, movementId: string): CitationItem[] {
+function parseCitationsInBlock(blockText: string, movementId: string, poemLines: string[] = []): CitationItem[] {
   const citations: CitationItem[] = [];
   let pending: ReturnType<typeof parseCitationLine> | null = null;
   let hasStarted = false;
@@ -321,7 +334,7 @@ function parseCitationsInBlock(blockText: string, movementId: string): CitationI
     const line = cleanSpaces(rawLine);
     if (!line || isColumnHeader(line)) continue;
 
-    const parsed = parseCitationLine(line);
+    const parsed = parseCitationLine(line, poemLines);
     const startsCitation = isCitationStart(line, parsed);
 
     if (!hasStarted) {
@@ -384,9 +397,9 @@ function stripMovementMarker(line: string): string {
   return line.replace(/^[IVXLC]+\)\s*/, '').trim();
 }
 
-function parseMovementBlock(lines: string[], title: string, index: number): Movement | null {
+function parseMovementBlock(lines: string[], title: string, index: number, poemLines: string[] = []): Movement | null {
   const movementId = `movement-${index + 1}`;
-  const citations = parseCitationsInBlock(lines.join('\n'), movementId);
+  const citations = parseCitationsInBlock(lines.join('\n'), movementId, poemLines);
   if (citations.length === 0) return null;
   return { id: movementId, title, citations };
 }
@@ -425,7 +438,7 @@ export function parseStudyText(rawText: string, poemText: string = ''): EtudeLin
     for (let i = 0; i < headingIndexes.length; i++) {
       const start = headingIndexes[i];
       const end = headingIndexes[i + 1] ?? bodyLines.length;
-      const movement = parseMovementBlock(bodyLines.slice(start, end), outline[i], i);
+      const movement = parseMovementBlock(bodyLines.slice(start, end), outline[i], i, textLines);
       if (movement) movements.push(movement);
     }
   } else {
@@ -436,7 +449,7 @@ export function parseStudyText(rawText: string, poemText: string = ''): EtudeLin
       const rawContent = (parts[i + 1] || '').trim();
       if (!rawContent) continue;
       const cleanTitle = stripMovementMarker(rawContent.split(/\r?\n/)[0] || '') || `Partie ${movements.length + 1}`;
-      const movement = parseMovementBlock(rawContent.split(/\r?\n/), cleanTitle, movements.length);
+      const movement = parseMovementBlock(rawContent.split(/\r?\n/), cleanTitle, movements.length, textLines);
       if (movement) movements.push(movement);
     }
   }

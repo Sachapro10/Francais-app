@@ -75,11 +75,17 @@ function procedeMatches(answer: string, stored: string): boolean {
     || singularAnswer.includes(singularStored);
 }
 
-/** Build a shuffled 4-option set: the correct answer + 3 random decoys from ALL_PROCEDES. */
-function buildIdentifyOptions(correctProcede: string, seed: number): string[] {
-  // Find the canonical name that best matches the stored procédé
-  const canonical = ALL_PROCEDES.find(p => procedeMatches(correctProcede, p)) ?? correctProcede;
-  const pool = ALL_PROCEDES.filter(p => !procedeMatches(p, canonical));
+/** Build a shuffled 4-option set: the correct answer + 3 random decoys from the available procédés. */
+function buildIdentifyOptions(correctProcede: string, seed: number, availableProcedes: string[]): string[] {
+  // Use the correct procédé as-is
+  const canonical = correctProcede;
+  const pool = availableProcedes.filter(p => !procedeMatches(p, canonical));
+
+  // If we don't have enough other procédés, return what we have
+  if (pool.length < 3) {
+    return [canonical, ...pool].sort((a, b) => a.localeCompare(b, 'fr'));
+  }
+
   // Deterministic shuffle of pool using seed so options are stable per question
   const seeded = [...pool];
   let s = seed * 1013904223 + 1664525;
@@ -207,10 +213,16 @@ export default function QuizView({ etude, analysisId, onComplete }: QuizViewProp
     return citations;
   }, [allCitations]);
 
-  const allProcedes = useMemo(
-    () => [...ALL_PROCEDES].sort((a, b) => a.localeCompare(b, 'fr')),
-    []
-  );
+  // Extract unique procédés actually used in this analysis
+  const analysisProcedes = useMemo(() => {
+    const procedes = new Set<string>();
+    allCitations.forEach(citation => {
+      if (citation.procede?.trim()) {
+        procedes.add(citation.procede.trim());
+      }
+    });
+    return Array.from(procedes).sort((a, b) => a.localeCompare(b, 'fr'));
+  }, [allCitations]);
 
   const [state, setState] = useState<QuizState>({
     phase: 'intro',
@@ -226,7 +238,7 @@ export default function QuizView({ etude, analysisId, onComplete }: QuizViewProp
     selectionValidated: false,
     selectionError: '',
     matchedCitation: null,
-    identifyOptions: shuffled[0] ? buildIdentifyOptions(shuffled[0].procede, 0) : [],
+    identifyOptions: shuffled[0] ? buildIdentifyOptions(shuffled[0].procede, 0, analysisProcedes) : [],
   });
 
   const current = shuffled[state.currentIdx];
@@ -244,9 +256,9 @@ export default function QuizView({ etude, analysisId, onComplete }: QuizViewProp
       selectionValidated: false,
       selectionError: '',
       matchedCitation: null,
-      identifyOptions: shuffled[index] ? buildIdentifyOptions(shuffled[index].procede, index) : [],
+      identifyOptions: shuffled[index] ? buildIdentifyOptions(shuffled[index].procede, index, analysisProcedes) : [],
     }));
-  }, [shuffled]);
+  }, [shuffled, analysisProcedes]);
 
   const startQuiz = useCallback((mode: QuizMode) => {
     setState(previous => ({
@@ -262,9 +274,9 @@ export default function QuizView({ etude, analysisId, onComplete }: QuizViewProp
       selectionValidated: false,
       selectionError: '',
       matchedCitation: null,
-      identifyOptions: shuffled[0] ? buildIdentifyOptions(shuffled[0].procede, 0) : [],
+      identifyOptions: shuffled[0] ? buildIdentifyOptions(shuffled[0].procede, 0, analysisProcedes) : [],
     }));
-  }, [shuffled]);
+  }, [shuffled, analysisProcedes]);
 
   const addSelectedFragment = useCallback((fragment: string) => {
     const cleaned = fragment.trim();
@@ -381,10 +393,10 @@ export default function QuizView({ etude, analysisId, onComplete }: QuizViewProp
         selectionValidated: false,
         selectionError: '',
         matchedCitation: null,
-        identifyOptions: shuffled[nextIndex] ? buildIdentifyOptions(shuffled[nextIndex].procede, nextIndex) : [],
+        identifyOptions: shuffled[nextIndex] ? buildIdentifyOptions(shuffled[nextIndex].procede, nextIndex, analysisProcedes) : [],
       };
     });
-  }, [shuffled]);
+  }, [shuffled, analysisProcedes]);
 
   const restartQuiz = useCallback(() => {
     setState({
@@ -401,9 +413,9 @@ export default function QuizView({ etude, analysisId, onComplete }: QuizViewProp
       selectionValidated: false,
       selectionError: '',
       matchedCitation: null,
-      identifyOptions: shuffled[0] ? buildIdentifyOptions(shuffled[0].procede, 0) : [],
+      identifyOptions: shuffled[0] ? buildIdentifyOptions(shuffled[0].procede, 0, analysisProcedes) : [],
     });
-  }, [shuffled]);
+  }, [shuffled, analysisProcedes]);
 
   if (state.phase === 'intro') {
     return (
@@ -566,52 +578,60 @@ export default function QuizView({ etude, analysisId, onComplete }: QuizViewProp
             <span className="text-sm font-medium text-white">{etude.title}</span>
             <span className="ml-auto text-xs text-slate-500">Texte sélectionnable</span>
           </div>
-          <div className="px-5 py-4">
-            <PoemLines
-              lines={etude.textLines}
-              selectable
-              renderLine={(line) => renderPoemLine(line)}
-              onLineMouseUp={() => {
-                const selection = window.getSelection()?.toString().trim() ?? '';
-                if (selection) addSelectedFragment(selection);
-              }}
-            />
-            <div className="mt-4 border-t border-white/5 pt-4 flex flex-col gap-3">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                <button
-                  onClick={validateSelectedFragments}
-                  disabled={state.selectedFragments.length === 0 || state.selectionValidated}
-                  className="copper-action px-4 py-2 rounded-lg text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105 active:scale-95 hover:shadow-lg"
-                >
-                  {state.selectionValidated ? 'Extraits validés' : 'Ajouter / valider un extrait'}
-                </button>
-                {!state.selectionValidated && state.selectedFragments.length > 0 && (
-                  <button onClick={clearSelectedFragments} className="text-xs text-slate-500 hover:text-red-600 transition-colors duration-200">Effacer les extraits</button>
+          {etude.textLines.length > 0 ? (
+            <div className="px-5 py-4">
+              <PoemLines
+                lines={etude.textLines}
+                selectable
+                renderLine={(line) => renderPoemLine(line)}
+                onLineMouseUp={() => {
+                  const selection = window.getSelection()?.toString().trim() ?? '';
+                  if (selection) addSelectedFragment(selection);
+                }}
+              />
+              <div className="mt-4 border-t border-white/5 pt-4 flex flex-col gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <button
+                    onClick={validateSelectedFragments}
+                    disabled={state.selectedFragments.length === 0 || state.selectionValidated}
+                    className="copper-action px-4 py-2 rounded-lg text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105 active:scale-95 hover:shadow-lg"
+                  >
+                    {state.selectionValidated ? 'Extraits validés' : 'Ajouter / valider un extrait'}
+                  </button>
+                  {!state.selectionValidated && state.selectedFragments.length > 0 && (
+                    <button onClick={clearSelectedFragments} className="text-xs text-slate-500 hover:text-red-600 transition-colors duration-200">Effacer les extraits</button>
+                  )}
+                  <span className={`text-xs ${state.selectionError ? 'text-red-600' : 'text-slate-500'}`}>
+                    {state.selectionError || (state.selectionValidated ? 'Choisissez maintenant un procédé.' : 'Sélectionnez plusieurs mots séparés si nécessaire, puis validez.')}
+                  </span>
+                </div>
+                {state.selectedFragments.length > 0 && !state.selectionValidated && (
+                  <div className="flex flex-wrap gap-2 animate-[soft-pop_0.3s_ease-out]">
+                    {state.selectedFragments.map((fragment, index) => (
+                      <span
+                        key={`${fragment}-${index}`}
+                        className="rounded-full bg-amber-500/15 px-2.5 py-1 text-xs text-amber-800 animate-[soft-pop_0.2s_ease-out] hover:bg-amber-500/25 transition-all duration-200"
+                        style={{ animationDelay: `${index * 50}ms` }}
+                      >
+                        {fragment}
+                      </span>
+                    ))}
+                  </div>
                 )}
-                <span className={`text-xs ${state.selectionError ? 'text-red-600' : 'text-slate-500'}`}>
-                  {state.selectionError || (state.selectionValidated ? 'Choisissez maintenant un procédé.' : 'Sélectionnez plusieurs mots séparés si nécessaire, puis validez.')}
-                </span>
               </div>
-              {state.selectedFragments.length > 0 && !state.selectionValidated && (
-                <div className="flex flex-wrap gap-2 animate-[soft-pop_0.3s_ease-out]">
-                  {state.selectedFragments.map((fragment, index) => (
-                    <span
-                      key={`${fragment}-${index}`}
-                      className="rounded-full bg-amber-500/15 px-2.5 py-1 text-xs text-amber-800 animate-[soft-pop_0.2s_ease-out] hover:bg-amber-500/25 transition-all duration-200"
-                      style={{ animationDelay: `${index * 50}ms` }}
-                    >
-                      {fragment}
-                    </span>
-                  ))}
+              {state.selectionValidated && (
+                <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 animate-[soft-pop_0.3s_ease-out]">
+                  Citation validée : « {state.selectedText} »
                 </div>
               )}
             </div>
-            {state.selectionValidated && (
-              <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 animate-[soft-pop_0.3s_ease-out]">
-                Citation validée : « {state.selectedText} »
-              </div>
-            )}
-          </div>
+          ) : (
+            <div className="px-5 py-12 text-center">
+              <BookOpen size={32} className="mx-auto mb-3 text-slate-600" />
+              <p className="text-sm font-medium text-slate-400 mb-1">Aucun texte du poème disponible</p>
+              <p className="text-xs text-slate-500">Importez le poème dans l'éditeur pour utiliser ce mode.</p>
+            </div>
+          )}
         </div>
       )}
 
@@ -641,7 +661,7 @@ export default function QuizView({ etude, analysisId, onComplete }: QuizViewProp
           </div>
 
           <div className={`grid gap-2 mt-2 ${state.mode === 'identify' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'}`}>
-            {(state.mode === 'identify' ? state.identifyOptions : allProcedes).map((procede, idx) => (
+            {(state.mode === 'identify' ? state.identifyOptions : analysisProcedes).map((procede, idx) => (
               <button
                 key={procede}
                 onClick={() => state.mode === 'identify' ? submitIdentify(procede) : submitLocate(procede)}
