@@ -13,31 +13,36 @@ export interface GrammarSentence {
   topicId?: string;
 }
 
-export type VerbValueType =
-  | 'valeur_temporelle'
-  | 'valeur_modale'
-  | 'forme_impersonnelle'
-  | 'voix_passive'
+export type VerbModeType =
+  | 'indicatif'
+  | 'subjonctif'
+  | 'imperatif'
   | 'infinitif'
-  | 'participe';
+  | 'participe'
+  | 'gerondif';
 
-export const VERB_VALUE_LABELS: Record<VerbValueType, string> = {
-  valeur_temporelle: 'Valeur temporelle',
-  valeur_modale: 'Valeur modale (subjonctif/conditionnel)',
-  forme_impersonnelle: 'Forme impersonnelle',
-  voix_passive: 'Voix passive',
-  infinitif: 'Infinitif / infinitif passé',
-  participe: 'Participe présent / participe passé',
+export const VERB_MODE_LABELS: Record<VerbModeType, string> = {
+  indicatif: 'Indicatif — réalité',
+  subjonctif: 'Subjonctif — possibilité',
+  imperatif: 'Impératif — ordre',
+  infinitif: 'Infinitif — valeur nominale',
+  participe: 'Participe — valeur adjectivale',
+  gerondif: 'Gérondif — valeur adverbiale',
 };
 
-export interface ValeurSentence {
+export const VERB_MODE_GROUPS: { label: string; modes: VerbModeType[] }[] = [
+  { label: 'Modes personnels', modes: ['indicatif', 'subjonctif', 'imperatif'] },
+  { label: 'Modes impersonnels', modes: ['infinitif', 'participe', 'gerondif'] },
+];
+
+export interface ModeSentence {
   id: number;
   rawText: string;
   /** comma-separated verb forms found in the sentence */
   verbs: string[];
-  valueType: VerbValueType;
-  /** human-readable description of the value */
-  valueExplanation: string;
+  modeType: VerbModeType;
+  /** human-readable explanation of the mode's value in context */
+  modeExplanation: string;
   /** full analysis text */
   answer: string;
 }
@@ -86,29 +91,53 @@ export const EAF_GRAMMAR_TOPICS: EafGrammarTopic[] = [
     ]
   },
   {
-    id: 'valeur_verbe',
-    title: '2. Valeur des Temps et Modes du Verbe',
-    shortName: 'Valeur du Verbe',
-    officialTheme: "Le système temporel et la valeur des temps/modes de l'indicatif",
-    description: "Analysez la valeur d'emploi des temps et modes : temporelle, modale, impersonnelle, passive, infinitif, participe.",
+    id: 'modes_verbe',
+    title: '2. Les modes du verbe',
+    shortName: 'Modes du verbe',
+    officialTheme: 'Les modes personnels et impersonnels et leur valeur',
+    description: "On distingue deux groupes de modes : les modes personnels (indicatif, subjonctif, impératif) et les modes impersonnels (infinitif, participe, gérondif). Chaque mode a une valeur caractéristique.",
     methodSteps: [
-      "1. Identifiez le verbe conjugué et son temps/mode.",
-      "2. Déterminez sa valeur : temporelle (description/narration), modale (subjonctif=volonté/crainte, conditionnel=hypothèse), impersonnelle, passive, infinitif ou participe.",
-      "3. Justifiez par le contexte et la construction de la phrase.",
-      "4. Opposez si nécessaire : présent de description vs présent de narration, imparfait d'habitude vs imparfait de description."
+      '1. Modes personnels : indicatif (réalité), subjonctif (possibilité) et impératif (ordre).',
+      '2. Modes impersonnels : infinitif (valeur nominale), participe (valeur adjectivale) et gérondif (valeur adverbiale).',
+      '3. Repérez la forme du verbe et observez sa construction dans la phrase.',
+      '4. Nommez le mode et justifiez sa valeur à partir du contexte.'
     ],
     examples: [
       {
-        question: "Quelle est la valeur du verbe dans : « C'est un trou de verdure où chante une rivière. »",
-        sentence: "C'est un trou de verdure où chante une rivière.",
-        answer: "Le présent de l'indicatif a une valeur de description : il peint le tableau bucolique et donne l'illusion de l'immédiateté sous les yeux du lecteur.",
-        bareme: "1 pt identification du temps / 1 pt valeur descriptive."
+        question: 'Identifiez le mode du verbe « est » et sa valeur.',
+        sentence: 'La Terre est ronde.',
+        answer: "« Est » est à l'indicatif, un mode personnel. Il présente comme réelle l'information selon laquelle la Terre est ronde.",
+        bareme: 'Mode indicatif / valeur de réalité.'
       },
       {
-        question: "Analysez le mode du subjonctif : « Il faut que tu viennes. »",
-        sentence: 'Il faut que tu viennes.',
-        answer: "Le subjonctif dans « tu viennes » expresses la nécessité/volonté (valeur modale), imposé par « il faut que ». Le subjonctif marque le caractère non certain de l'action.",
-        bareme: "1 pt subjonctif / 1 pt valeur modale (nécessité)."
+        question: 'Identifiez le mode du verbe « vienne » et sa valeur.',
+        sentence: 'Il est possible que Léa vienne.',
+        answer: '« Vienne » est au subjonctif, un mode personnel. Il exprime ici une possibilité, introduite par « il est possible que ».',
+        bareme: 'Mode subjonctif / valeur de possibilité.'
+      },
+      {
+        question: 'Identifiez le mode du verbe « fermez » et sa valeur.',
+        sentence: 'Fermez la porte !',
+        answer: "« Fermez » est à l'impératif, un mode personnel. Il exprime un ordre adressé à la personne qui écoute.",
+        bareme: 'Mode impératif / valeur d’ordre.'
+      },
+      {
+        question: 'Identifiez le mode du verbe « lire » et sa valeur.',
+        sentence: 'Lire chaque jour enrichit le vocabulaire.',
+        answer: '« Lire » est à l’infinitif, un mode impersonnel. Le groupe infinitif « lire chaque jour » occupe la fonction de sujet : il a une valeur nominale.',
+        bareme: 'Mode infinitif / valeur nominale.'
+      },
+      {
+        question: 'Identifiez le mode du verbe « blessé » et sa valeur.',
+        sentence: 'Un soldat blessé attendait les secours.',
+        answer: '« Blessé » est un participe passé, un mode impersonnel. Il qualifie le nom « soldat » comme un adjectif : il a une valeur adjectivale.',
+        bareme: 'Mode participe / valeur adjectivale.'
+      },
+      {
+        question: 'Identifiez le mode du verbe « écoutant » et sa valeur.',
+        sentence: 'Elle révise en écoutant de la musique.',
+        answer: '« En écoutant » est au gérondif, un mode impersonnel. Le groupe précise dans quelle circonstance elle révise et fonctionne comme un complément adverbial : il a une valeur adverbiale.',
+        bareme: 'Mode gérondif / valeur adverbiale.'
       }
     ]
   }
@@ -360,172 +389,54 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
   }
 ];
 
-// ─── Valeur du Verbe Exercises ────────────────────────────────────────────────
-export const VALEUR_SENTENCES: ValeurSentence[] = [
-  // ── Valeur Temporelle ──
+// ─── Verb Mode Exercises ───────────────────────────────────────────────────────
+export const MODE_SENTENCES: ModeSentence[] = [
   {
     id: 1,
-    rawText: "Le soldat meurt dans la nuit noire.",
-    verbs: ["meurt"],
-    valueType: 'valeur_temporelle',
-    valueExplanation: "Passé simple = temps du récit, premier plan narratif.",
-    answer: "Le verbe 'meurt' est au passé simple. Dans ce contexte, il a une valeur temporelle de premier plan narratif : il marque une action bornée et instante qui fait avancer le récit. Le passé simple s'oppose à l'imparfait (fond/descriptif) qui poserait le décor."
+    rawText: 'La Terre est ronde.',
+    verbs: ['est'],
+    modeType: 'indicatif',
+    modeExplanation: 'Mode personnel — valeur de réalité.',
+    answer: "« Est » est à l'indicatif, un mode personnel. Il présente comme réelle l'information selon laquelle la Terre est ronde."
   },
   {
     id: 2,
-    rawText: "Il faisait sombre et les étoiles brillaient.",
-    verbs: ["faisait", "brillaient"],
-    valueType: 'valeur_temporelle',
-    valueExplanation: "Imparfait = фон descriptif / habitude du récit.",
-    answer: "Les verbes 'faisait' et 'brillaient' sont à l'imparfait. L'imparfait a ici une valeur temporelle de фон/descriptif : il pose le cadre, l'atmosphère nocturne, sans faire avancer l'action. Il s'oppose au passé simple qui créerait le premier plan."
+    rawText: 'Il est possible que Léa vienne.',
+    verbs: ['vienne'],
+    modeType: 'subjonctif',
+    modeExplanation: 'Mode personnel — valeur de possibilité.',
+    answer: '« Vienne » est au subjonctif, un mode personnel. Il exprime ici une possibilité, introduite par « il est possible que ».'
   },
   {
     id: 3,
-    rawText: "La terre est ronde et tourne autour du soleil.",
-    verbs: ["est", "tourne"],
-    valueType: 'valeur_temporelle',
-    valueExplanation: "Présent de vérité générale / d'énonciation.",
-    answer: "Les verbes 'est' et 'tourne' sont au présent de l'indicatif. Ils ont une valeur de vérité générale (énonciation atemporelle) : ce sont des faits immuables. Le présent d'énonciation sert à exprimer une certitude ou une loi universelle."
+    rawText: 'Fermez la porte !',
+    verbs: ['Fermez'],
+    modeType: 'imperatif',
+    modeExplanation: 'Mode personnel — valeur d’ordre.',
+    answer: "« Fermez » est à l'impératif, un mode personnel. Il exprime un ordre adressé à la personne qui écoute."
   },
   {
     id: 4,
-    rawText: "Je partirai demain à l'aube.",
-    verbs: ["parturai"],
-    valueType: 'valeur_temporelle',
-    valueExplanation: "Futur simple = projection dans l'avenir, incertitude.",
-    answer: "Le verbe 'partirai' est au futur simple. Il a une valeur temporelle de projection dans l'avenir : l'action est envisagée comme devant se réaliser. Le futur peut aussi exprimer l'incertitude ou la politesse selon le contexte."
+    rawText: 'Lire chaque jour enrichit le vocabulaire.',
+    verbs: ['Lire'],
+    modeType: 'infinitif',
+    modeExplanation: 'Mode impersonnel — valeur nominale.',
+    answer: '« Lire » est à l’infinitif, un mode impersonnel. Le groupe infinitif « lire chaque jour » occupe la fonction de sujet : il a une valeur nominale.'
   },
   {
     id: 5,
-    rawText: "Chaque matin, le berger sortait à l'aube.",
-    verbs: ["sortait"],
-    valueType: 'valeur_temporelle',
-    valueExplanation: "Imparfait d'habitude / d'itération.",
-    answer: "Le verbe 'sortait' est à l'imparfait. L'adverbe 'chaque matin' confirme la valeur d'habitude (itération) : l'action se répétait régulièrement dans le passé. L'imparfait s'oppose au passé simple qui exprimerait une action unique."
+    rawText: 'Un soldat blessé attendait les secours.',
+    verbs: ['blessé'],
+    modeType: 'participe',
+    modeExplanation: 'Mode impersonnel — valeur adjectivale.',
+    answer: '« Blessé » est un participe passé, un mode impersonnel. Il qualifie le nom « soldat » comme un adjectif : il a une valeur adjectivale.'
   },
   {
     id: 6,
-    rawText: "Or, c'était un petit val calme et serein.",
-    verbs: ["était"],
-    valueType: 'valeur_temporelle',
-    valueExplanation: "Imparfait de description dans un récit au passé.",
-    answer: "Le verbe 'était' est à l'imparfait. Il a une valeur de description qui pose le décor du récit : 'un petit val calme et serein'. L'imparfait ne fait pas avancer l'action mais installe l'atmosphère (imparfait de фон)."
-  },
-  // ── Valeur Modale ──
-  {
-    id: 7,
-    rawText: "Il faut que tu sois prudent.",
-    verbs: ["faut", "sois"],
-    valueType: 'valeur_modale',
-    valueExplanation: "Subjonctif après 'il faut que' = nécessité/volonté.",
-    answer: "Le verbe 'faut' est au présent de l'indicatif (forme impersonnelle). Le verbe 'sois' est au subjonctif présent, exigé par 'il faut que'. Le subjonctif a ici une valeur modale de nécessité : l'accomplissement de l'action est présenté comme obligatoire, souhaité."
-  },
-  {
-    id: 8,
-    rawText: "Je doute qu'il ait raison.",
-    verbs: ["doute", "ait"],
-    valueType: 'valeur_modale',
-    valueExplanation: "Subjonctif après 'douter' = doute, incertitude.",
-    answer: "Le verbe 'doute' est à l'indicatif. Le verbe 'ait' est au subjonctif passé, exigé par le verbe 'douter'. Le subjonctif a une valeur modale d'incertitude : le locuteur doute de la véracité du fait."
-  },
-  {
-    id: 9,
-    rawText: "Bien que la route soit longue, nous continuerons.",
-    verbs: ["soit", "continuerons"],
-    valueType: 'valeur_modale',
-    valueExplanation: "Subjonctif après 'bien que' = concession, opposition.",
-    answer: "'Soit' est au subjonctif, exigé par la locution conjonctive 'bien que'. Le subjonctif a une valeur modale de concession : il expresses l'opposition entre la cause ('la route soit longue') et le fait principal ('nous continuerons')."
-  },
-  {
-    id: 10,
-    rawText: "Il faudrait que tu révises tes leçons.",
-    verbs: ["faudrait", "révises"],
-    valueType: 'valeur_modale',
-    valueExplanation: "Conditionnel présent = hypothèse, souhait ou conseil poli.",
-    answer: "'Faudrait' est au conditionnel présent et 'révises' au subjonctif. Le conditionnel a une valeur modale d'hypothèse ('si tu voulais') ou de conseil poli ; le subjonctif, lui, expresses la nécessité souhaitée."
-  },
-  // ── Formes Impersonnelles ──
-  {
-    id: 11,
-    rawText: "Il pleut depuis trois jours sans arrêt.",
-    verbs: ["pleut"],
-    valueType: 'forme_impersonnelle',
-    valueExplanation: "Verbe météorologique impersonnel : 'il' ne renvoie à personne.",
-    answer: "Le verbe 'pleut' est conjugué à la troisième personne du singulier du présent de l'indicatif. C'est une forme impersonnelle : le pronom 'il' n'a aucune valeur référentielle (il ne renvoie à aucune personne). Ce type de verbe exprime un phénomène naturel ou un état."
-  },
-  {
-    id: 12,
-    rawText: "Il semble que le danger soit passé.",
-    verbs: ["semble", "soit"],
-    valueType: 'forme_impersonnelle',
-    valueExplanation: "Verbe impersonnel 'sembler' + subjonctif.",
-    answer: "'Semble' est conjugué à la forme impersonnelle (sujet 'il' vide). Le subjonctif 'soit' est obligatoire après 'il semble que'. Ce verbe impersonnel exprime une apparence, une impression non confirmée."
-  },
-  {
-    id: 13,
-    rawText: "Il était nécessaire que chacun contribuat.",
-    verbs: ["était", "contribuât"],
-    valueType: 'forme_impersonnelle',
-    valueExplanation: "Forme impersonnelle + subjonctif (impératif déguisé).",
-    answer: "'Était' est à la forme impersonnelle (sujet 'il' non référentiel). 'Contribuât' est au subjonctif imparfait, imposé par 'il était nécessaire que'. Cette construction impersonnelle a la valeur d'un ordre ou d'une nécessité absolue."
-  },
-  // ── Voix Passive ──
-  {
-    id: 14,
-    rawText: "Le texte a été analysé par les élèves.",
-    verbs: ["été analysé"],
-    valueType: 'voix_passive',
-    valueExplanation: "Voix passive : auxiliaire 'être' + participe passé.",
-    answer: "Le verbe 'a été analysé' est à la voix passive. La voix passive est formée de l'auxiliaire 'être' au сложный passé + le participe passé du verbe 'analyser'. L'agent de l'action est 'par les élèves'. La voix passive permet de mettre en relief le complément d'objet ou l'agent."
-  },
-  {
-    id: 15,
-    rawText: "La thèse fut defendue avec passion.",
-    verbs: ["fut defendue"],
-    valueType: 'voix_passive',
-    valueExplanation: "Passé simple de la voix passive (littéraire).",
-    answer: "'Fut défendue' est au passé simple de la voix passive, avec l'auxiliaire 'être' au passé simple + participe passé. L'agent n'est pas explicité ici. L'emploi du passé simple confère un style soutenu et littéraire à la phrase."
-  },
-  // ── Infinitif ──
-  {
-    id: 16,
-    rawText: "J'ai décidé de partir en voyage.",
-    verbs: ["ai décidé", "partir"],
-    valueType: 'infinitif',
-    valueExplanation: "Infinitif présent après préposition 'de' = action à accomplir.",
-    answer: "Le verbe 'ai décidé' est au passé composé (forme composée de l'indicatif). 'Partir' est à l'infinitif présent. L'infinitif a une valeur nominale : il fonctionne comme nom et peut être COD, sujet ou CC. Ici, 'partir en voyage' est COD du verbe 'décider'."
-  },
-  {
-    id: 17,
-    rawText: "Ne pas oublier de réviser avant l'examen.",
-    verbs: ["oublier", "réviser"],
-    valueType: 'infinitif',
-    valueExplanation: "Infinitif négatif = ordre ou interdiction.",
-    answer: "'Oublier' et 'réviser' sont à l'infinitif. L'infinitif négatif ('ne pas oublier') a une valeur d'ordre ou d'interdiction : il exprime une prescription de manière impersonnelle, sans sujet défini."
-  },
-  // ── Participe ──
-  {
-    id: 18,
-    rawText: "Le soldat endormi dans l'herbe froide représente la paix.",
-    verbs: ["endormi"],
-    valueType: 'participe',
-    valueExplanation: "Participe passé adjectival (= épithète) qualifiant le nom.",
-    answer: "'Endormi' est un participe passé adjectivé. Il fonctionne comme épithète du nom 'soldat' et s'accorde en genre et en nombre avec lui. Il remplace une proposition relative ('le soldat qui est endormi') et a une valeur descriptive."
-  },
-  {
-    id: 19,
-    rawText: "Ayant terminé son exposé, le candidat s'assit.",
-    verbs: ["Ayant terminé", "s'assit"],
-    valueType: 'participe',
-    valueExplanation: "Participe présent composé = antériorité par rapport au verbe principal.",
-    answer: "'Ayant terminé' est un participe présent composé (participe présent de 'avoir' + participe passé 'terminé'). Il exprime l'antériorité par rapport à l'action principale 's'assit' : le candidat termina d'abord son exposé, puis s'assit. Le participe présent composé remplace une proposition subordonnée temporelle."
-  },
-  {
-    id: 20,
-    rawText: "Les résultats obtenus sont encourageants.",
-    verbs: ["obtenus"],
-    valueType: 'participe',
-    valueExplanation: "Participe passé employed comme adjectif (épithète du nom).",
-    answer: "'Obtenus' est un participe passé adjectivé, épithète du nom 'résultats'. Il s'accorde au pluriel masculin. Il remplace une proposition relative ('les résultats qui ont été obtenus'). Le participe présent东海形容词 a une valeur descriptive et remplace une subordonnée relative."
+    rawText: 'Elle révise en écoutant de la musique.',
+    verbs: ['en écoutant'],
+    modeType: 'gerondif',
+    modeExplanation: 'Mode impersonnel — valeur adverbiale.',
+    answer: '« En écoutant » est au gérondif, un mode impersonnel. Le groupe précise dans quelle circonstance elle révise et fonctionne comme un complément adverbial : il a une valeur adverbiale.'
   }
 ];

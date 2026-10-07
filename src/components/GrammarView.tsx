@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import {
   GRAMMAR_SENTENCES, GrammarSentence,
-  VALEUR_SENTENCES, ValeurSentence, VERB_VALUE_LABELS,
+  MODE_SENTENCES, ModeSentence, VERB_MODE_LABELS, VERB_MODE_GROUPS,
   EAF_GRAMMAR_TOPICS
 } from '../utils/grammarData';
 
@@ -406,10 +406,10 @@ function PropositionExercise({ sentences }: { sentences: GrammarSentence[] }) {
   );
 }
 
-// ─── Valeur du Verbe Exercise ──────────────────────────────────────────────
-function ValeurVerbeExercise({ sentences }: { sentences: ValeurSentence[] }) {
+// ─── Verb Mode Exercise ──────────────────────────────────────────────────────
+function ModeVerbeExercise({ sentences }: { sentences: ModeSentence[] }) {
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedValue, setSelectedValue] = useState<string>('');
+  const [selectedMode, setSelectedMode] = useState<string>('');
   const [isChecked, setIsChecked] = useState(false);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
 
@@ -417,18 +417,16 @@ function ValeurVerbeExercise({ sentences }: { sentences: ValeurSentence[] }) {
   const current = sentences[Math.min(currentPage - 1, totalPages - 1)];
 
   useEffect(() => {
-    setSelectedValue('');
+    setSelectedMode('');
     setIsChecked(false);
     setIsCorrect(null);
   }, [currentPage]);
 
   const handleCheck = () => {
-    if (!selectedValue) return;
-    setIsCorrect(selectedValue === current.valueType);
+    if (!selectedMode) return;
+    setIsCorrect(selectedMode === current.modeType);
     setIsChecked(true);
   };
-
-  const verbValueTypes = Object.entries(VERB_VALUE_LABELS) as [typeof current.valueType, string][];
 
   return (
     <div className="space-y-6">
@@ -447,7 +445,7 @@ function ValeurVerbeExercise({ sentences }: { sentences: ValeurSentence[] }) {
       <div className="wood-panel p-8 sm:p-12 rounded-3xl border border-white/10 relative">
         <div className="absolute top-0 left-0 w-1 h-full bg-amber-500" />
         <div className="text-xs uppercase tracking-widest font-bold text-amber-400 mb-4 opacity-60">
-          Identifiez la valeur du verbe :
+          Identifiez le mode du verbe :
         </div>
         <p className="text-2xl sm:text-3xl font-serif-literary text-white leading-relaxed">
           {current.rawText}
@@ -461,40 +459,45 @@ function ValeurVerbeExercise({ sentences }: { sentences: ValeurSentence[] }) {
         </div>
       </div>
 
-      {/* Value type selector */}
-      <div className="space-y-4">
+      {/* Mode selector, separated into the two mode groups */}
+      <div className="space-y-5">
         <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider text-center">
-          Quelle est la valeur du verbe ?
+          Quel est le mode du verbe ?
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-          {verbValueTypes.map(([id, label]) => (
-            <button
-              key={id}
-              onClick={() => { if (!isChecked) setSelectedValue(id); }}
-              disabled={isChecked}
-              className={`p-3 rounded-xl text-xs font-semibold transition-all border text-left ${
-                isChecked
-                  ? id === current.valueType
-                    ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
-                    : selectedValue === id
-                      ? 'bg-red-500/20 border-red-500 text-red-300'
-                      : 'bg-slate-900/60 border-white/5 text-slate-500'
-                  : selectedValue === id
-                    ? 'bg-amber-500/20 border-amber-500 text-amber-300 scale-105'
-                    : 'bg-slate-900/60 border-white/5 text-slate-300 hover:bg-slate-800 hover:border-white/10'
-              }`}
-            >
-              {label}
-              {isChecked && id === current.valueType && <Check size={12} className="inline ml-2" />}
-            </button>
-          ))}
-        </div>
+        {VERB_MODE_GROUPS.map(group => (
+          <section key={group.label} className="space-y-2">
+            <h4 className="text-xs font-bold text-amber-300 uppercase tracking-wide">{group.label}</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {group.modes.map(id => (
+                <button
+                  key={id}
+                  onClick={() => { if (!isChecked) setSelectedMode(id); }}
+                  disabled={isChecked}
+                  className={`p-3 rounded-xl text-xs font-semibold transition-all border text-left ${
+                    isChecked
+                      ? id === current.modeType
+                        ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
+                        : selectedMode === id
+                          ? 'bg-red-500/20 border-red-500 text-red-300'
+                          : 'bg-slate-900/60 border-white/5 text-slate-500'
+                      : selectedMode === id
+                        ? 'bg-amber-500/20 border-amber-500 text-amber-300 scale-105'
+                        : 'bg-slate-900/60 border-white/5 text-slate-300 hover:bg-slate-800 hover:border-white/10'
+                  }`}
+                >
+                  {VERB_MODE_LABELS[id]}
+                  {isChecked && id === current.modeType && <Check size={12} className="inline ml-2" />}
+                </button>
+              ))}
+            </div>
+          </section>
+        ))}
 
         {!isChecked && (
           <div className="flex justify-center">
             <button
               onClick={handleCheck}
-              disabled={!selectedValue}
+              disabled={!selectedMode}
               className="copper-action px-10 py-4 rounded-2xl text-white font-bold text-lg hover:scale-105 disabled:opacity-20 disabled:cursor-not-allowed"
             >
               Vérifier
@@ -509,7 +512,7 @@ function ValeurVerbeExercise({ sentences }: { sentences: ValeurSentence[] }) {
               {isCorrect ? <Check size={20} /> : <X size={20} />}
               <div>
                 <p className="font-bold text-sm">{isCorrect ? 'Correct !' : 'Incorrect'}</p>
-                {!isCorrect && <p className="text-xs text-slate-400 mt-0.5">La réponse était : {VERB_VALUE_LABELS[current.valueType as keyof typeof VERB_VALUE_LABELS]}</p>}
+                {!isCorrect && <p className="text-xs text-slate-400 mt-0.5">La réponse était : {VERB_MODE_LABELS[current.modeType]}</p>}
               </div>
             </div>
 
@@ -555,8 +558,8 @@ export default function GrammarView() {
     []
   );
 
-  const valeurSentences = useMemo(() =>
-    VALEUR_SENTENCES,
+  const modeSentences = useMemo(() =>
+    MODE_SENTENCES,
     []
   );
 
@@ -674,8 +677,8 @@ export default function GrammarView() {
         {selectedTopicId === 'proposition' && (
           <PropositionExercise key="proposition" sentences={propositionSentences} />
         )}
-        {selectedTopicId === 'valeur_verbe' && (
-          <ValeurVerbeExercise key="valeur_verbe" sentences={valeurSentences} />
+        {selectedTopicId === 'modes_verbe' && (
+          <ModeVerbeExercise key="modes_verbe" sentences={modeSentences} />
         )}
       </div>
     </div>

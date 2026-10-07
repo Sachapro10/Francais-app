@@ -1,0 +1,1 @@
+- [French verb-mode groups](french-verb-modes.md) — Preserve the requested personal/impersonal groups and their mode-value mappings in grammar content.
