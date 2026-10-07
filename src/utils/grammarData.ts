@@ -13,6 +13,35 @@ export interface GrammarSentence {
   topicId?: string;
 }
 
+export type VerbValueType =
+  | 'valeur_temporelle'
+  | 'valeur_modale'
+  | 'forme_impersonnelle'
+  | 'voix_passive'
+  | 'infinitif'
+  | 'participe';
+
+export const VERB_VALUE_LABELS: Record<VerbValueType, string> = {
+  valeur_temporelle: 'Valeur temporelle',
+  valeur_modale: 'Valeur modale (subjonctif/conditionnel)',
+  forme_impersonnelle: 'Forme impersonnelle',
+  voix_passive: 'Voix passive',
+  infinitif: 'Infinitif / infinitif passé',
+  participe: 'Participe présent / participe passé',
+};
+
+export interface ValeurSentence {
+  id: number;
+  rawText: string;
+  /** comma-separated verb forms found in the sentence */
+  verbs: string[];
+  valueType: VerbValueType;
+  /** human-readable description of the value */
+  valueExplanation: string;
+  /** full analysis text */
+  answer: string;
+}
+
 export interface EafGrammarTopic {
   id: string;
   title: string;
@@ -30,166 +59,62 @@ export interface EafGrammarTopic {
 
 export const EAF_GRAMMAR_TOPICS: EafGrammarTopic[] = [
   {
-    id: 'negation',
-    title: '1. La Négation (Totale, Partielle, Restrictive)',
-    shortName: 'Négation',
-    officialTheme: 'La négation : formes et portée',
-    description: 'Identifier le type de négation, sa portée et effectuer la transformation affirmative.',
+    id: 'proposition',
+    title: '1. La Proposition (Analyse Logique)',
+    shortName: 'Proposition',
+    officialTheme: "Identifier et classer les propositions dans une phrase complexe",
+    description: 'Découpez la phrase en propositions, identifiez la proposition principale et classez les propositions subordonnées.',
     methodSteps: [
-      '1. Identifier les adverbes ou pronoms de la négation (ne...pas, ne...jamais, ne...personne, ne...rien, ne...aucun).',
-      '2. Préciser si la négation est totale (porte sur toute la proposition) ou partielle (porte sur un seul élément).',
-      '3. Relever les cas particuliers : la négation restrictive (ne...que = seulement) ou l\'emploi expletif.',
-      '4. Effectuer la transformation à la forme affirmative pour justifier votre analyse.'
+      '1. Comptez les verbes conjugués = nombre de propositions.',
+      '2. Trouvez la proposition principale (celle qui peut exister seule).',
+      '3. Identifiez les mots de subordination ou coordination (qui, que, quand, si, mais, et…).',
+      '4. Précisez la nature : principale, relative, complétive ou circonstancielle.'
     ],
     examples: [
       {
-        question: 'Analysez la négation dans la phrase suivante : « Les parfums ne font pas frissonner sa narine » (v.12).',
-        sentence: 'Les parfums ne font pas frissonner sa narine.',
-        answer: 'Il s’agit d’une négation totale. Elle est exprimée par les deux adverbes corrélatifs « ne » (adverbe discordantiel) et « pas » (adverbe forclusif) qui encadrent le verbe conjugué « font ». Elle porte sur l’ensemble de la proposition. À la forme affirmative, la phrase devient : « Les parfums font frissonner sa narine ».',
-        bareme: '1 pt pour l’identification (totale + mots ne...pas) / 1 pt pour l’analyse de la portée et la transformation affirmative.'
+        question: "Analysez la structure de la phrase en propositions et identifiez leur nature.",
+        sentence: "Je pense qu'il viendra demain.",
+        answer: "Deux propositions : « Je pense » (principale) et « qu'il viendra demain » (subordonnée complétive introduite par « que », COD du verbe « pense »).",
+        bareme: "1 pt découpage / 1 pt nature correcte."
       },
       {
-        question: 'Analysez la négation dans : « C’est un petit val qui ne mousse que de rayons ».',
-        sentence: 'C’est un petit val qui ne mousse que de rayons.',
-        answer: 'Il s’agit d’une négation restrictive (ou fausse négation) exprimée par « ne...que ». Elle a la valeur de l’adverbe d’intensité « seulement ». À la forme affirmative restrictive, la phrase équivaut à : « C’est un petit val qui mousse seulement de rayons ».',
-        bareme: '1 pt pour la distinction restriction vs négation / 1 pt pour la paraphrase explicative.'
+        question: "Identifiez les propositions : « Le chat qui dort est gris. »",
+        sentence: 'Le chat qui dort est gris.',
+        answer: "« Le chat est gris » (principale) et « qui dort » (subordonnée relative, relative du sujet « chat »).",
+        bareme: "1 pt principale / 1 pt relative."
       }
     ]
   },
   {
-    id: 'interrogation',
-    title: '2. L’Interrogation (Directe, Indirecte, Totale, Partielle)',
-    shortName: 'Interrogation',
-    officialTheme: 'L’interrogation : sintaxe et valeurs',
-    description: 'Distinguer interrogation directe/indirecte, totale/partielle et identifier le registre de langue.',
+    id: 'valeur_verbe',
+    title: '2. Valeur des Temps et Modes du Verbe',
+    shortName: 'Valeur du Verbe',
+    officialTheme: "Le système temporel et la valeur des temps/modes de l'indicatif",
+    description: "Analysez la valeur d'emploi des temps et modes : temporelle, modale, impersonnelle, passive, infinitif, participe.",
     methodSteps: [
-      '1. Distinguer l\'interrogation directe (ponctue par ?) et l\'interrogation indirecte (proposition subordonnée complétive).',
-      '2. Déterminer si l\'interrogation est totale (réponse par oui/non) ou partielle (porte sur un élément représenté par un mot interrogatif).',
-      '3. Analyser la syntaxe : inversion du sujet, mot interrogatif (qui, que, où, comment), ou présence de « est-ce que ».'
+      "1. Identifiez le verbe conjugué et son temps/mode.",
+      "2. Déterminez sa valeur : temporelle (description/narration), modale (subjonctif=volonté/crainte, conditionnel=hypothèse), impersonnelle, passive, infinitif ou participe.",
+      "3. Justifiez par le contexte et la construction de la phrase.",
+      "4. Opposez si nécessaire : présent de description vs présent de narration, imparfait d'habitude vs imparfait de description."
     ],
     examples: [
       {
-        question: 'Analysez la forme interrogative : « Pourquoi la rivière chante-t-elle dans la vallée ? »',
-        sentence: 'Pourquoi la rivière chante-t-elle dans la vallée ?',
-        answer: 'C’est une interrogation directe (présence du point d’interrogation et reprise du sujet par le pronom « elle »). Elle est partielle car elle porte sur la cause, introduite par le mot interrogatif « pourquoi ». Le niveau de langue est soutenu avec inversion complexe du sujet.',
-        bareme: '1 pt pour directe + partielle / 1 pt pour la syntaxe (mot interrogatif + inversion).'
-      }
-    ]
-  },
-  {
-    id: 'relative',
-    title: '3. La Proposition Subordonnée Relative',
-    shortName: 'Sub. Relative',
-    officialTheme: 'La proposition subordonnée relative',
-    description: 'Identifier la proposition relative, trouver son antécédent, et préciser la fonction du pronom relatif.',
-    methodSteps: [
-      '1. Délimiter la proposition subordonnée relative (du pronom relatif jusqu\'au verbe de la relative).',
-      '2. Identifier son antécédent (le nom ou pronom qu\'elle complète dans la principale).',
-      '3. Donner la nature du pronom relatif (qui, que, dont, où, lequel...) et sa fonction propre dans la subordonnée (Sujet, COD, COI, CC).'
-    ],
-    examples: [
-      {
-        question: 'Analysez la subordonnée relative dans : « C’est un trou de verdure où chante une rivière » (v.1).',
-        sentence: 'C’est un trou de verdure où chante une rivière.',
-        answer: 'La proposition subordonnée relative est « où chante une rivière ». Elle est introduite par le pronom relatif « où » et complète l’antécédent « trou de verdure ». Dans la subordonnée, le pronom relatif « où » a pour fonction Complément Circonstanciel de Lieu du verbe « chante » (dont le sujet inversé est « une rivière »).',
-        bareme: '1 pt pour la délimitation et l’antécédent / 1 pt pour la nature et fonction du pronom relatif.'
+        question: "Quelle est la valeur du verbe dans : « C'est un trou de verdure où chante une rivière. »",
+        sentence: "C'est un trou de verdure où chante une rivière.",
+        answer: "Le présent de l'indicatif a une valeur de description : il peint le tableau bucolique et donne l'illusion de l'immédiateté sous les yeux du lecteur.",
+        bareme: "1 pt identification du temps / 1 pt valeur descriptive."
       },
       {
-        question: 'Analysez la subordonnée relative dans : « Le soldat qui dort dans l’herbe est jeune ».',
-        sentence: 'Le soldat qui dort dans l’herbe est jeune.',
-        answer: '« qui dort dans l’herbe » est une proposition subordonnée relative introduite par le pronom relatif simple « qui ». Elle a pour antécédent le nom « soldat ». Le pronom relatif « qui » a pour fonction Sujet du verbe « dort ».',
-        bareme: '1 pt pour l’antécédent / 1 pt pour la fonction sujet.'
-      }
-    ]
-  },
-  {
-    id: 'completive',
-    title: '4. La Proposition Subordonnée Complétive',
-    shortName: 'Sub. Complétive',
-    officialTheme: 'La proposition subordonnée complétive',
-    description: 'Analyser la proposition complétive introduite par "que", sa fonction de COD et le mode du verbe.',
-    methodSteps: [
-      '1. Délimiter la proposition complétive introduite par la conjonction de subordination « que » (ou interrogative indirecte).',
-      '2. Montrer qu\'elle n\'a pas d\'antécédent et qu\'elle est essentielle (ne peut pas être supprimée).',
-      '3. Préciser sa fonction (COD du verbe principal) et justifier le mode du verbe subordonné (indicatif ou subjonctif).'
-    ],
-    examples: [
-      {
-        question: 'Analysez la proposition subordonnée dans : « Le poète montre que la nature berce le soldat ».',
-        sentence: 'Le poète montre que la nature berce le soldat.',
-        answer: '« que la nature berce le soldat » est une proposition subordonnée conjonctive complétive, introduite par la conjonction de subordination « que ». Elle n’a pas d’antécédent et occupe la fonction de Complément d’Objet Direct (COD) du verbe principal « montre ». Le verbe « berce » est au mode indicatif (fait certain).',
-        bareme: '1 pt pour la nature complétive + absence d’antécédent / 1 pt pour la fonction COD et le mode.'
-      }
-    ]
-  },
-  {
-    id: 'circonstancielle',
-    title: '5. Les Subordonnées Circonstancielles (Cause, But, Concession...)',
-    shortName: 'Sub. Circonstancielle',
-    officialTheme: 'Les propositions subordonnées circonstancielles',
-    description: 'Identifier le rapport logique exprimé (cause, conséquence, but, concession, condition) et la conjonction.',
-    methodSteps: [
-      '1. Délimiter la proposition subordonnée circonstancielle et repérer le subordonnant (parce que, bien que, pour que, si...).',
-      '2. Identifier le rapport logique exprimé (Cause, Conséquence, But, Concession/Opposition, Hypothèse/Condition, Temps).',
-      '3. Justifier l\'emploi du mode du verbe subordonné (subjonctif après bien que/pour que, indicatif après parce que).'
-    ],
-    examples: [
-      {
-        question: 'Analysez la subordonnée circonstancielle dans : « Nature, berce-le chaudement : car il a froid ».',
-        sentence: 'Nature, berce-le chaudement : car il a froid.',
-        answer: 'Bien que reliée par la conjonction de coordination « car », la proposition « il a froid » exprime un rapport logique de Cause. S’il s’agissait d’une subordonnée introduite par « parce que », ce serait une subordonnée circonstancielle de cause au mode indicatif.',
-        bareme: '1 pt pour l’expression de la cause / 1 pt pour l’analyse syntaxique.'
-      },
-      {
-        question: 'Analysez la subordonnée dans : « Bien qu’il soit au soleil, le soldat a froid ».',
-        sentence: 'Bien qu’il soit au soleil, le soldat a froid.',
-        answer: '« Bien qu’il soit au soleil » est une proposition subordonnée circonstancielle de concession, introduite par la locution conjonctive « bien que ». Elle emploie le verbe « soit » au mode subjonctif (exigé par bien que).',
-        bareme: '1 pt pour la concession / 1 pt pour l’explication du mode subjonctif.'
-      }
-    ]
-  },
-  {
-    id: 'temps_modes',
-    title: '6. Le Système Temporel & Valeur des Temps et Modes',
-    shortName: 'Temps & Modes',
-    officialTheme: 'Le système temporel et la valeur des temps/modes',
-    description: 'Analyser la valeur d’emploi des temps (présent de vérité générale, narration, imparfait descriptif/passé simple).',
-    methodSteps: [
-      '1. Identifier le temps et le mode du verbe conjugué.',
-      '2. Rattacher le verbe à son système temporel (système du présent / discours vs système du passé / récit).',
-      '3. Nommer précisément la valeur d\'emploi : présent de description, de vérité générale, de narration, d\'énonciation ; imparfait descriptif ou d\'habitude ; passé simple de premier plan.'
-    ],
-    examples: [
-      {
-        question: 'Analysez la valeur du présent dans : « C’est un trou de verdure où chante une rivière » (v.1).',
-        sentence: 'C’est un trou de verdure où chante une rivière.',
-        answer: 'Les verbes « est » et « chante » sont conjugués au présent de l’indicatif. Il s’agit d’un présent de description qui sert à peindre le tableau naturel bucolique et donner l’illusion de l’immédiateté sous les yeux du lecteur.',
-        bareme: '1 pt pour l’identification du temps/mode / 1 pt pour la valeur de description.'
-      }
-    ]
-  },
-  {
-    id: 'discours_rapporte',
-    title: '7. Le Discours Rapporté & Concordance des Temps',
-    shortName: 'Discours Rapporté',
-    officialTheme: 'Le discours rapporté et la concordance des temps',
-    description: 'Analyser les formes de discours direct, indirect et indirect libre et maitriser les transpositions.',
-    methodSteps: [
-      '1. Identifier la forme de discours rapporté (Direct avec guillemets, Indirect avec proposition complétive, Indirect libre).',
-      '2. Analyser les marquer du discours (verbe de parole, ponctuation, pronoms personnels, indicateurs spatio-temporels).',
-      '3. Expliciter les règles de concordance des temps lors de la transposition au passé (présent -> imparfait, futur -> conditionnel).'
-    ],
-    examples: [
-      {
-        question: 'Transposez au discours indirect au passé : « Le poète dit : "Le soldat dort dans le val." »',
-        sentence: 'Le poète dit : "Le soldat dort dans le val."',
-        answer: 'Au discours indirect au passé : « Le poète a dit que le soldat dormait dans le val. » Le présent « dort » devient un imparfait « dormait » en vertu de la concordance des temps, et les guillemets/deux-points sont remplacés par la subordination complétive avec « que ».',
-        bareme: '1 pt pour la subordination complétive / 1 pt pour la concordance du temps (imparfait).'
+        question: "Analysez le mode du subjonctif : « Il faut que tu viennes. »",
+        sentence: 'Il faut que tu viennes.',
+        answer: "Le subjonctif dans « tu viennes » expresses la nécessité/volonté (valeur modale), imposé par « il faut que ». Le subjonctif marque le caractère non certain de l'action.",
+        bareme: "1 pt subjonctif / 1 pt valeur modale (nécessité)."
       }
     ]
   }
 ];
 
+// ─── Proposition Analysis Exercises ───────────────────────────────────────
 export const GRAMMAR_SENTENCES: GrammarSentence[] = [
   {
     id: 1,
@@ -200,7 +125,8 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
       { text: "Le vent souffle", type: "Principale" },
       { text: "la pluie tombe sur le toit", type: "Coordonnées" }
     ],
-    ruleExplanation: "Les deux propositions sont reliées par la conjonction de coordination 'et'."
+    ruleExplanation: "Les deux propositions sont coordonnées par la conjonction 'et'.",
+    topicId: 'proposition'
   },
   {
     id: 2,
@@ -211,8 +137,8 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
       { text: "Je pense", type: "Principale" },
       { text: "qu'il viendra demain soir", type: "Subordonnée complétive" }
     ],
-    ruleExplanation: "La proposition commence par 'que' et complète le verbe 'pense'.",
-    topicId: 'completive'
+    ruleExplanation: "La proposition subordonnée commence par 'que' et complète le verbe 'pense'.",
+    topicId: 'proposition'
   },
   {
     id: 3,
@@ -223,7 +149,8 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
       { text: "Il pleut", type: "Principale" },
       { text: "je prends mon parapluie", type: "Juxtaposées" }
     ],
-    ruleExplanation: "Les deux propositions sont séparées par un point-virgule sans mot de liaison."
+    ruleExplanation: "Les deux propositions sont séparées par un point-virgule sans mot de liaison.",
+    topicId: 'proposition'
   },
   {
     id: 4,
@@ -235,7 +162,7 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
       { text: "qui dort sur le tapis", type: "Subordonnée relative" }
     ],
     ruleExplanation: "'qui' est un pronom relatif qui complète le nom 'chat'.",
-    topicId: 'relative'
+    topicId: 'proposition'
   },
   {
     id: 5,
@@ -246,8 +173,8 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
       { text: "les oiseaux chantent", type: "Principale" },
       { text: "Quand le soleil se lève", type: "Subordonnée circonstancielle" }
     ],
-    ruleExplanation: "'Quand' introduit une circonstance de temps.",
-    topicId: 'circonstancielle'
+    ruleExplanation: "'Quand' introduit une subordonnée circonstancielle de temps.",
+    topicId: 'proposition'
   },
   {
     id: 6,
@@ -258,7 +185,8 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
       { text: "Il travaille dur", type: "Principale" },
       { text: "il veut réussir", type: "Coordonnées" }
     ],
-    ruleExplanation: "'car' est une conjonction de coordination."
+    ruleExplanation: "'car' est une conjonction de coordination exprimant la cause.",
+    topicId: 'proposition'
   },
   {
     id: 7,
@@ -269,8 +197,8 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
       { text: "Je sais", type: "Principale" },
       { text: "que tu as raison", type: "Subordonnée complétive" }
     ],
-    ruleExplanation: "Complétive introduite par 'que'.",
-    topicId: 'completive'
+    ruleExplanation: "'que' introduit une complétive, COD du verbe 'sais'.",
+    topicId: 'proposition'
   },
   {
     id: 8,
@@ -282,7 +210,8 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
       { text: "je bois", type: "Juxtaposées" },
       { text: "nous discutons", type: "Juxtaposées" }
     ],
-    ruleExplanation: "Propositions juxtaposées par des virgules."
+    ruleExplanation: "Trois propositions juxtaposées par des virgules.",
+    topicId: 'proposition'
   },
   {
     id: 9,
@@ -293,8 +222,8 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
       { text: "La maison est spacieuse", type: "Principale" },
       { text: "que nous avons achetée", type: "Subordonnée relative" }
     ],
-    ruleExplanation: "Le pronom relatif 'que' complète le nom 'maison'.",
-    topicId: 'relative'
+    ruleExplanation: "'que' est un pronom relatif COD de 'achetée'.",
+    topicId: 'proposition'
   },
   {
     id: 10,
@@ -305,8 +234,8 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
       { text: "nous irons au cinéma", type: "Principale" },
       { text: "Si tu viens demain", type: "Subordonnée circonstancielle" }
     ],
-    ruleExplanation: "'Si' introduit une circonstance de condition.",
-    topicId: 'circonstancielle'
+    ruleExplanation: "'Si' introduit une circonstancielle de condition/hypothèse.",
+    topicId: 'proposition'
   },
   {
     id: 11,
@@ -319,7 +248,7 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
       { text: "personne n'applaudit", type: "Coordonnées" }
     ],
     ruleExplanation: "Propositions coordonnées par 'et' et 'mais'.",
-    topicId: 'negation'
+    topicId: 'proposition'
   },
   {
     id: 12,
@@ -330,8 +259,8 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
       { text: "Je crois", type: "Principale" },
       { text: "qu'elle a raison", type: "Subordonnée complétive" }
     ],
-    ruleExplanation: "La complétive complète le verbe 'crois'.",
-    topicId: 'completive'
+    ruleExplanation: "'que' introduit une complétive COD de 'crois'.",
+    topicId: 'proposition'
   },
   {
     id: 13,
@@ -342,8 +271,8 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
       { text: "j'accepte ton invitation", type: "Principale" },
       { text: "Puisque tu insistes", type: "Subordonnée circonstancielle" }
     ],
-    ruleExplanation: "'Puisque' introduit une circonstance de cause.",
-    topicId: 'circonstancielle'
+    ruleExplanation: "'Puisque' introduit une circonstancielle de cause.",
+    topicId: 'proposition'
   },
   {
     id: 14,
@@ -354,8 +283,8 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
       { text: "Le livre est excellent", type: "Principale" },
       { text: "dont je t'ai parlé", type: "Subordonnée relative" }
     ],
-    ruleExplanation: "'dont' est un pronom relatif qui complète le nom 'livre'.",
-    topicId: 'relative'
+    ruleExplanation: "'dont' est un pronom relatif qui remplace 'de qui / de quoi'.",
+    topicId: 'proposition'
   },
   {
     id: 15,
@@ -366,7 +295,8 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
       { text: "Il fait beau", type: "Principale" },
       { text: "nous sortons", type: "Coordonnées" }
     ],
-    ruleExplanation: "'donc' est une conjonction de coordination."
+    ruleExplanation: "'donc' est une conjonction de coordination qui indique la conséquence.",
+    topicId: 'proposition'
   },
   {
     id: 16,
@@ -377,8 +307,8 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
       { text: "je continue à travailler", type: "Principale" },
       { text: "Bien que je sois fatigué", type: "Subordonnée circonstancielle" }
     ],
-    ruleExplanation: "'Bien que' introduit une circonstance de concession.",
-    topicId: 'circonstancielle'
+    ruleExplanation: "'Bien que' introduit une circonstancielle de concession. Le subjonctif est exigé.",
+    topicId: 'proposition'
   },
   {
     id: 17,
@@ -389,264 +319,213 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
       { text: "Il parle", type: "Principale" },
       { text: "elle écoute attentivement", type: "Juxtaposées" }
     ],
-    ruleExplanation: "Propositions juxtaposées par un point-virgule."
+    ruleExplanation: "Point-virgule sans mot de liaison : propositions juxtaposées.",
+    topicId: 'proposition'
   },
   {
     id: 18,
-    rawText: "Je sais où tu habites maintenant.",
-    bracketedText: "[Je sais] Prop 1 [où tu habites maintenant] Prop 2",
-    verbs: ["sais", "habites"],
+    rawText: "Où que tu ailles, je te retrouverai.",
+    bracketedText: "[Où que tu ailles] Prop 2, [je te retrouverai] Prop 1",
+    verbs: ["ailles", "retrouverai"],
     propositions: [
-      { text: "Je sais", type: "Principale" },
-      { text: "où tu habites maintenant", type: "Subordonnée complétive" }
+      { text: "je te retrouverai", type: "Principale" },
+      { text: "Où que tu ailles", type: "Subordonnée circonstancielle" }
     ],
-    ruleExplanation: "La complétive indirecte introduite par 'où' complète le verbe 'sais'."
+    ruleExplanation: "'Où que' avec subjonctif exprime la concession (quel que soit le lieu).",
+    topicId: 'proposition'
   },
   {
     id: 19,
-    rawText: "L'enfant qui pleure veut son jouet.",
-    bracketedText: "[L'enfant [qui pleure] Prop 2 veut son jouet] Prop 1",
-    verbs: ["pleure", "veut"],
+    rawText: "L'homme qui rit est heureux.",
+    bracketedText: "[L'homme [qui rit] Prop 2 est heureux] Prop 1",
+    verbs: ["rit", "est"],
     propositions: [
-      { text: "L'enfant veut son jouet", type: "Principale" },
-      { text: "qui pleure", type: "Subordonnée relative" }
+      { text: "L'homme est heureux", type: "Principale" },
+      { text: "qui rit", type: "Subordonnée relative" }
     ],
-    ruleExplanation: "'qui' complète le nom 'enfant'."
+    ruleExplanation: "Pronom relatif 'qui' sujet du verbe 'rit'.",
+    topicId: 'proposition'
   },
   {
     id: 20,
-    rawText: "Comme il pleuvait, nous sommes restés à la maison.",
-    bracketedText: "[Comme il pleuvait] Prop 2, [nous sommes restés à la maison] Prop 1",
-    verbs: ["pleuvait", "sommes restés"],
+    rawText: "Je doute qu'il puisse venir.",
+    bracketedText: "[Je doute] Prop 1 [qu'il puisse venir] Prop 2",
+    verbs: ["doute", "puisse"],
     propositions: [
-      { text: "nous sommes restés à la maison", type: "Principale" },
-      { text: "Comme il pleuvait", type: "Subordonnée circonstancielle" }
+      { text: "Je doute", type: "Principale" },
+      { text: "qu'il puisse venir", type: "Subordonnée complétive" }
     ],
-    ruleExplanation: "'Comme' introduit une circonstance de cause."
+    ruleExplanation: "Le verbe 'douter' exige le subjonctif dans la complétive.",
+    topicId: 'proposition'
+  }
+];
+
+// ─── Valeur du Verbe Exercises ────────────────────────────────────────────────
+export const VALEUR_SENTENCES: ValeurSentence[] = [
+  // ── Valeur Temporelle ──
+  {
+    id: 1,
+    rawText: "Le soldat meurt dans la nuit noire.",
+    verbs: ["meurt"],
+    valueType: 'valeur_temporelle',
+    valueExplanation: "Passé simple = temps du récit, premier plan narratif.",
+    answer: "Le verbe 'meurt' est au passé simple. Dans ce contexte, il a une valeur temporelle de premier plan narratif : il marque une action bornée et instante qui fait avancer le récit. Le passé simple s'oppose à l'imparfait (fond/descriptif) qui poserait le décor."
   },
   {
-    id: 21,
-    rawText: "Elle affirme qu'il fera beau demain.",
-    bracketedText: "[Elle affirme] Prop 1 [qu'il fera beau demain] Prop 2",
-    verbs: ["affirme", "fera"],
-    propositions: [
-      { text: "Elle affirme", type: "Principale" },
-      { text: "qu'il fera beau demain", type: "Subordonnée complétive" }
-    ],
-    ruleExplanation: "La complétive complète le verbe 'affirme'."
+    id: 2,
+    rawText: "Il faisait sombre et les étoiles brillaient.",
+    verbs: ["faisait", "brillaient"],
+    valueType: 'valeur_temporelle',
+    valueExplanation: "Imparfait = фон descriptif / habitude du récit.",
+    answer: "Les verbes 'faisait' et 'brillaient' sont à l'imparfait. L'imparfait a ici une valeur temporelle de фон/descriptif : il pose le cadre, l'atmosphère nocturne, sans faire avancer l'action. Il s'oppose au passé simple qui créerait le premier plan."
   },
   {
-    id: 22,
-    rawText: "La voiture que j'ai vue est rouge.",
-    bracketedText: "[La voiture [que j'ai vue] Prop 2 est rouge] Prop 1",
-    verbs: ["ai vue", "est"],
-    propositions: [
-      { text: "La voiture est rouge", type: "Principale" },
-      { text: "que j'ai vue", type: "Subordonnée relative" }
-    ],
-    ruleExplanation: "'que' est un pronom relatif complétant 'voiture'."
+    id: 3,
+    rawText: "La terre est ronde et tourne autour du soleil.",
+    verbs: ["est", "tourne"],
+    valueType: 'valeur_temporelle',
+    valueExplanation: "Présent de vérité générale / d'énonciation.",
+    answer: "Les verbes 'est' et 'tourne' sont au présent de l'indicatif. Ils ont une valeur de vérité générale (énonciation atemporelle) : ce sont des faits immuables. Le présent d'énonciation sert à exprimer une certitude ou une loi universelle."
   },
   {
-    id: 23,
-    rawText: "Tu réussis car tu travailles beaucoup.",
-    bracketedText: "[Tu réussis] Prop 1 [car tu travailles beaucoup] Prop 2",
-    verbs: ["réussis", "travailles"],
-    propositions: [
-      { text: "Tu réussis", type: "Principale" },
-      { text: "tu travailles beaucoup", type: "Coordonnées" }
-    ],
-    ruleExplanation: "'car' coordonne les deux propositions."
+    id: 4,
+    rawText: "Je partirai demain à l'aube.",
+    verbs: ["parturai"],
+    valueType: 'valeur_temporelle',
+    valueExplanation: "Futur simple = projection dans l'avenir, incertitude.",
+    answer: "Le verbe 'partirai' est au futur simple. Il a une valeur temporelle de projection dans l'avenir : l'action est envisagée comme devant se réaliser. Le futur peut aussi exprimer l'incertitude ou la politesse selon le contexte."
   },
   {
-    id: 24,
-    rawText: "Dès que le soleil paraît, les fleurs s'ouvrent.",
-    bracketedText: "[Dès que le soleil paraît] Prop 2, [les fleurs s'ouvrent] Prop 1",
-    verbs: ["paraît", "ouvrent"],
-    propositions: [
-      { text: "les fleurs s'ouvrent", type: "Principale" },
-      { text: "Dès que le soleil paraît", type: "Subordonnée circonstancielle" }
-    ],
-    ruleExplanation: "'Dès que' introduit une circonstance de temps."
+    id: 5,
+    rawText: "Chaque matin, le berger sortait à l'aube.",
+    verbs: ["sortait"],
+    valueType: 'valeur_temporelle',
+    valueExplanation: "Imparfait d'habitude / d'itération.",
+    answer: "Le verbe 'sortait' est à l'imparfait. L'adverbe 'chaque matin' confirme la valeur d'habitude (itération) : l'action se répétait régulièrement dans le passé. L'imparfait s'oppose au passé simple qui exprimerait une action unique."
   },
   {
-    id: 25,
-    rawText: "Je me demande si tu viendras ce soir.",
-    bracketedText: "[Je me demande] Prop 1 [si tu viendras ce soir] Prop 2",
-    verbs: ["demande", "viendras"],
-    propositions: [
-      { text: "Je me demande", type: "Principale" },
-      { text: "si tu viendras ce soir", type: "Subordonnée complétive" }
-    ],
-    ruleExplanation: "La complétive interrogative indirecte avec 'si'."
+    id: 6,
+    rawText: "Or, c'était un petit val calme et serein.",
+    verbs: ["était"],
+    valueType: 'valeur_temporelle',
+    valueExplanation: "Imparfait de description dans un récit au passé.",
+    answer: "Le verbe 'était' est à l'imparfait. Il a une valeur de description qui pose le décor du récit : 'un petit val calme et serein'. L'imparfait ne fait pas avancer l'action mais installe l'atmosphère (imparfait de фон)."
+  },
+  // ── Valeur Modale ──
+  {
+    id: 7,
+    rawText: "Il faut que tu sois prudent.",
+    verbs: ["faut", "sois"],
+    valueType: 'valeur_modale',
+    valueExplanation: "Subjonctif après 'il faut que' = nécessité/volonté.",
+    answer: "Le verbe 'faut' est au présent de l'indicatif (forme impersonnelle). Le verbe 'sois' est au subjonctif présent, exigé par 'il faut que'. Le subjonctif a ici une valeur modale de nécessité : l'accomplissement de l'action est présenté comme obligatoire, souhaité."
   },
   {
-    id: 26,
-    rawText: "Il court, elle marche, ils avancent ensemble.",
-    bracketedText: "[Il court] Prop 1, [elle marche] Prop 2, [ils avancent ensemble] Prop 3",
-    verbs: ["court", "marche", "avancent"],
-    propositions: [
-      { text: "Il court", type: "Principale" },
-      { text: "elle marche", type: "Juxtaposées" },
-      { text: "ils avancent ensemble", type: "Juxtaposées" }
-    ],
-    ruleExplanation: "Trois propositions juxtaposées par des virgules."
+    id: 8,
+    rawText: "Je doute qu'il ait raison.",
+    verbs: ["doute", "ait"],
+    valueType: 'valeur_modale',
+    valueExplanation: "Subjonctif après 'douter' = doute, incertitude.",
+    answer: "Le verbe 'doute' est à l'indicatif. Le verbe 'ait' est au subjonctif passé, exigé par le verbe 'douter'. Le subjonctif a une valeur modale d'incertitude : le locuteur doute de la véracité du fait."
   },
   {
-    id: 27,
-    rawText: "L'homme à qui j'ai parlé est mon voisin.",
-    bracketedText: "[L'homme [à qui j'ai parlé] Prop 2 est mon voisin] Prop 1",
-    verbs: ["ai parlé", "est"],
-    propositions: [
-      { text: "L'homme est mon voisin", type: "Principale" },
-      { text: "à qui j'ai parlé", type: "Subordonnée relative" }
-    ],
-    ruleExplanation: "'à qui' est un pronom relatif avec préposition."
+    id: 9,
+    rawText: "Bien que la route soit longue, nous continuerons.",
+    verbs: ["soit", "continuerons"],
+    valueType: 'valeur_modale',
+    valueExplanation: "Subjonctif après 'bien que' = concession, opposition.",
+    answer: "'Soit' est au subjonctif, exigé par la locution conjonctive 'bien que'. Le subjonctif a une valeur modale de concession : il expresses l'opposition entre la cause ('la route soit longue') et le fait principal ('nous continuerons')."
   },
   {
-    id: 28,
-    rawText: "Avant qu'il ne parte, nous devons lui parler.",
-    bracketedText: "[Avant qu'il ne parte] Prop 2, [nous devons lui parler] Prop 1",
-    verbs: ["parte", "devons parler"],
-    propositions: [
-      { text: "nous devons lui parler", type: "Principale" },
-      { text: "Avant qu'il ne parte", type: "Subordonnée circonstancielle" }
-    ],
-    ruleExplanation: "'Avant que' introduit une circonstance de temps."
+    id: 10,
+    rawText: "Il faudrait que tu révises tes leçons.",
+    verbs: ["faudrait", "révises"],
+    valueType: 'valeur_modale',
+    valueExplanation: "Conditionnel présent = hypothèse, souhait ou conseil poli.",
+    answer: "'Faudrait' est au conditionnel présent et 'révises' au subjonctif. Le conditionnel a une valeur modale d'hypothèse ('si tu voulais') ou de conseil poli ; le subjonctif, lui, expresses la nécessité souhaitée."
+  },
+  // ── Formes Impersonnelles ──
+  {
+    id: 11,
+    rawText: "Il pleut depuis trois jours sans arrêt.",
+    verbs: ["pleut"],
+    valueType: 'forme_impersonnelle',
+    valueExplanation: "Verbe météorologique impersonnel : 'il' ne renvoie à personne.",
+    answer: "Le verbe 'pleut' est conjugué à la troisième personne du singulier du présent de l'indicatif. C'est une forme impersonnelle : le pronom 'il' n'a aucune valeur référentielle (il ne renvoie à aucune personne). Ce type de verbe exprime un phénomène naturel ou un état."
   },
   {
-    id: 29,
-    rawText: "Je lis et tu écris mais lui dessine.",
-    bracketedText: "[Je lis] Prop 1 [et tu écris] Prop 2 [mais lui dessine] Prop 3",
-    verbs: ["lis", "écris", "dessine"],
-    propositions: [
-      { text: "Je lis", type: "Principale" },
-      { text: "tu écris", type: "Coordonnées" },
-      { text: "lui dessine", type: "Coordonnées" }
-    ],
-    ruleExplanation: "Propositions coordonnées par 'et' et 'mais'."
+    id: 12,
+    rawText: "Il semble que le danger soit passé.",
+    verbs: ["semble", "soit"],
+    valueType: 'forme_impersonnelle',
+    valueExplanation: "Verbe impersonnel 'sembler' + subjonctif.",
+    answer: "'Semble' est conjugué à la forme impersonnelle (sujet 'il' vide). Le subjonctif 'soit' est obligatoire après 'il semble que'. Ce verbe impersonnel exprime une apparence, une impression non confirmée."
   },
   {
-    id: 30,
-    rawText: "Elle espère que tu comprendras sa décision.",
-    bracketedText: "[Elle espère] Prop 1 [que tu comprendras sa décision] Prop 2",
-    verbs: ["espère", "comprendras"],
-    propositions: [
-      { text: "Elle espère", type: "Principale" },
-      { text: "que tu comprendras sa décision", type: "Subordonnée complétive" }
-    ],
-    ruleExplanation: "La complétive complète le verbe 'espère'."
+    id: 13,
+    rawText: "Il était nécessaire que chacun contribuat.",
+    verbs: ["était", "contribuât"],
+    valueType: 'forme_impersonnelle',
+    valueExplanation: "Forme impersonnelle + subjonctif (impératif déguisé).",
+    answer: "'Était' est à la forme impersonnelle (sujet 'il' non référentiel). 'Contribuât' est au subjonctif imparfait, imposé par 'il était nécessaire que'. Cette construction impersonnelle a la valeur d'un ordre ou d'une nécessité absolue."
+  },
+  // ── Voix Passive ──
+  {
+    id: 14,
+    rawText: "Le texte a été analysé par les élèves.",
+    verbs: ["été analysé"],
+    valueType: 'voix_passive',
+    valueExplanation: "Voix passive : auxiliaire 'être' + participe passé.",
+    answer: "Le verbe 'a été analysé' est à la voix passive. La voix passive est formée de l'auxiliaire 'être' au сложный passé + le participe passé du verbe 'analyser'. L'agent de l'action est 'par les élèves'. La voix passive permet de mettre en relief le complément d'objet ou l'agent."
   },
   {
-    id: 31,
-    rawText: "Le film dont tout le monde parle sort demain.",
-    bracketedText: "[Le film [dont tout le monde parle] Prop 2 sort demain] Prop 1",
-    verbs: ["parle", "sort"],
-    propositions: [
-      { text: "Le film sort demain", type: "Principale" },
-      { text: "dont tout le monde parle", type: "Subordonnée relative" }
-    ],
-    ruleExplanation: "'dont' complète le nom 'film'."
+    id: 15,
+    rawText: "La thèse fut defendue avec passion.",
+    verbs: ["fut defendue"],
+    valueType: 'voix_passive',
+    valueExplanation: "Passé simple de la voix passive (littéraire).",
+    answer: "'Fut défendue' est au passé simple de la voix passive, avec l'auxiliaire 'être' au passé simple + participe passé. L'agent n'est pas explicité ici. L'emploi du passé simple confère un style soutenu et littéraire à la phrase."
+  },
+  // ── Infinitif ──
+  {
+    id: 16,
+    rawText: "J'ai décidé de partir en voyage.",
+    verbs: ["ai décidé", "partir"],
+    valueType: 'infinitif',
+    valueExplanation: "Infinitif présent après préposition 'de' = action à accomplir.",
+    answer: "Le verbe 'ai décidé' est au passé composé (forme composée de l'indicatif). 'Partir' est à l'infinitif présent. L'infinitif a une valeur nominale : il fonctionne comme nom et peut être COD, sujet ou CC. Ici, 'partir en voyage' est COD du verbe 'décider'."
   },
   {
-    id: 32,
-    rawText: "Pendant que tu dormais, j'ai préparé le dîner.",
-    bracketedText: "[Pendant que tu dormais] Prop 2, [j'ai préparé le dîner] Prop 1",
-    verbs: ["dormais", "ai préparé"],
-    propositions: [
-      { text: "j'ai préparé le dîner", type: "Principale" },
-      { text: "Pendant que tu dormais", type: "Subordonnée circonstancielle" }
-    ],
-    ruleExplanation: "'Pendant que' introduit une circonstance de temps."
+    id: 17,
+    rawText: "Ne pas oublier de réviser avant l'examen.",
+    verbs: ["oublier", "réviser"],
+    valueType: 'infinitif',
+    valueExplanation: "Infinitif négatif = ordre ou interdiction.",
+    answer: "'Oublier' et 'réviser' sont à l'infinitif. L'infinitif négatif ('ne pas oublier') a une valeur d'ordre ou d'interdiction : il exprime une prescription de manière impersonnelle, sans sujet défini."
+  },
+  // ── Participe ──
+  {
+    id: 18,
+    rawText: "Le soldat endormi dans l'herbe froide représente la paix.",
+    verbs: ["endormi"],
+    valueType: 'participe',
+    valueExplanation: "Participe passé adjectival (= épithète) qualifiant le nom.",
+    answer: "'Endormi' est un participe passé adjectivé. Il fonctionne comme épithète du nom 'soldat' et s'accorde en genre et en nombre avec lui. Il remplace une proposition relative ('le soldat qui est endormi') et a une valeur descriptive."
   },
   {
-    id: 33,
-    rawText: "Il pleut ; nous prenons nos parapluies ; la rue se vide.",
-    bracketedText: "[Il pleut] Prop 1 ; [nous prenons nos parapluies] Prop 2 ; [la rue se vide] Prop 3",
-    verbs: ["pleut", "prenons", "vide"],
-    propositions: [
-      { text: "Il pleut", type: "Principale" },
-      { text: "nous prenons nos parapluies", type: "Juxtaposées" },
-      { text: "la rue se vide", type: "Juxtaposées" }
-    ],
-    ruleExplanation: "Trois propositions juxtaposées par des points-virgules."
+    id: 19,
+    rawText: "Ayant terminé son exposé, le candidat s'assit.",
+    verbs: ["Ayant terminé", "s'assit"],
+    valueType: 'participe',
+    valueExplanation: "Participe présent composé = antériorité par rapport au verbe principal.",
+    answer: "'Ayant terminé' est un participe présent composé (participe présent de 'avoir' + participe passé 'terminé'). Il exprime l'antériorité par rapport à l'action principale 's'assit' : le candidat termina d'abord son exposé, puis s'assit. Le participe présent composé remplace une proposition subordonnée temporelle."
   },
   {
-    id: 34,
-    rawText: "Parce qu'elle est malade, elle reste au lit.",
-    bracketedText: "[Parce qu'elle est malade] Prop 2, [elle reste au lit] Prop 1",
-    verbs: ["est", "reste"],
-    propositions: [
-      { text: "elle reste au lit", type: "Principale" },
-      { text: "Parce qu'elle est malade", type: "Subordonnée circonstancielle" }
-    ],
-    ruleExplanation: "'Parce que' introduit une circonstance de cause."
-  },
-  {
-    id: 35,
-    rawText: "Je ne sais pas comment il a réussi.",
-    bracketedText: "[Je ne sais pas] Prop 1 [comment il a réussi] Prop 2",
-    verbs: ["sais", "a réussi"],
-    propositions: [
-      { text: "Je ne sais pas", type: "Principale" },
-      { text: "comment il a réussi", type: "Subordonnée complétive" }
-    ],
-    ruleExplanation: "La complétive interrogative indirecte avec 'comment'."
-  },
-  {
-    id: 36,
-    rawText: "La femme qui chante est ma mère.",
-    bracketedText: "[La femme [qui chante] Prop 2 est ma mère] Prop 1",
-    verbs: ["chante", "est"],
-    propositions: [
-      { text: "La femme est ma mère", type: "Principale" },
-      { text: "qui chante", type: "Subordonnée relative" }
-    ],
-    ruleExplanation: "'qui' complète le nom 'femme'."
-  },
-  {
-    id: 37,
-    rawText: "Afin que tu réussisses, je t'aide tous les jours.",
-    bracketedText: "[Afin que tu réussisses] Prop 2, [je t'aide tous les jours] Prop 1",
-    verbs: ["réussisses", "aide"],
-    propositions: [
-      { text: "je t'aide tous les jours", type: "Principale" },
-      { text: "Afin que tu réussisses", type: "Subordonnée circonstancielle" }
-    ],
-    ruleExplanation: "'Afin que' introduit une circonstance de but."
-  },
-  {
-    id: 38,
-    rawText: "Tu étudies ou tu regardes la télévision.",
-    bracketedText: "[Tu étudies] Prop 1 [ou tu regardes la télévision] Prop 2",
-    verbs: ["étudies", "regardes"],
-    propositions: [
-      { text: "Tu étudies", type: "Principale" },
-      { text: "tu regardes la télévision", type: "Coordonnées" }
-    ],
-    ruleExplanation: "'ou' est une conjonction de coordination."
-  },
-  {
-    id: 39,
-    rawText: "Il affirme qu'il viendra mais je doute qu'il soit sérieux.",
-    bracketedText: "[Il affirme [qu'il viendra] Prop 2] Prop 1 [mais je doute [qu'il soit sérieux] Prop 4] Prop 3",
-    verbs: ["affirme", "viendra", "doute", "soit"],
-    propositions: [
-      { text: "Il affirme", type: "Principale" },
-      { text: "qu'il viendra", type: "Subordonnée complétive" },
-      { text: "je doute", type: "Coordonnées" },
-      { text: "qu'il soit sérieux", type: "Subordonnée complétive" }
-    ],
-    ruleExplanation: "Deux propositions principales coordonnées, chacune avec une complétive."
-  },
-  {
-    id: 40,
-    rawText: "La ville où je suis né a beaucoup changé.",
-    bracketedText: "[La ville [où je suis né] Prop 2 a beaucoup changé] Prop 1",
-    verbs: ["suis né", "a changé"],
-    propositions: [
-      { text: "La ville a beaucoup changé", type: "Principale" },
-      { text: "où je suis né", type: "Subordonnée relative" }
-    ],
-    ruleExplanation: "'où' est un pronom relatif de lieu."
+    id: 20,
+    rawText: "Les résultats obtenus sont encourageants.",
+    verbs: ["obtenus"],
+    valueType: 'participe',
+    valueExplanation: "Participe passé employed comme adjectif (épithète du nom).",
+    answer: "'Obtenus' est un participe passé adjectivé, épithète du nom 'résultats'. Il s'accorde au pluriel masculin. Il remplace une proposition relative ('les résultats qui ont été obtenus'). Le participe présent东海形容词 a une valeur descriptive et remplace une subordonnée relative."
   }
 ];
