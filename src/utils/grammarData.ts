@@ -386,6 +386,102 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
     ],
     ruleExplanation: "Le verbe 'douter' exige le subjonctif dans la complétive.",
     topicId: 'proposition'
+  },
+  {
+    id: 21,
+    rawText: "André arrive demain ; Marie rentre ce soir.",
+    bracketedText: "[André arrive demain] Prop 1 ; [Marie rentre ce soir] Prop 2",
+    verbs: ["arrive", "rentre"],
+    propositions: [
+      { text: "André arrive demain", type: "Juxtaposées" },
+      { text: "Marie rentre ce soir", type: "Juxtaposées" }
+    ],
+    ruleExplanation: "Point-virgule entre deux propositions sans mot de liaison : elles sont juxtaposées.",
+    topicId: 'proposition'
+  },
+  {
+    id: 22,
+    rawText: "Le garçon à qui tu parles est mon frère.",
+    bracketedText: "[Le garçon [à qui tu parles] Prop 2 est mon frère] Prop 1",
+    verbs: ["parles", "est"],
+    propositions: [
+      { text: "Le garçon est mon frère", type: "Principale" },
+      { text: "à qui tu parles", type: "Subordonnée relative" }
+    ],
+    ruleExplanation: "'à qui' combine préposition et pronom relatif pour compléter 'parles'.",
+    topicId: 'proposition'
+  },
+  {
+    id: 23,
+    rawText: "Nous irons à la plage pourvu que le temps soit beau.",
+    bracketedText: "[Nous irons à la plage] Prop 1 [pourvu que le temps soit beau] Prop 2",
+    verbs: ["irons", "soit"],
+    propositions: [
+      { text: "Nous irons à la plage", type: "Principale" },
+      { text: "pourvu que le temps soit beau", type: "Subordonnée circonstancielle" }
+    ],
+    ruleExplanation: "'Pourvu que' introduit une circonstancielle de souhait/condition et exige le subjonctif.",
+    topicId: 'proposition'
+  },
+  {
+    id: 24,
+    rawText: "Bien que la route soit longue, nous partons ce matin.",
+    bracketedText: "[Bien que la route soit longue] Prop 2, [nous partons ce matin] Prop 1",
+    verbs: ["soit", "partons"],
+    propositions: [
+      { text: "nous partons ce matin", type: "Principale" },
+      { text: "Bien que la route soit longue", type: "Subordonnée circonstancielle" }
+    ],
+    ruleExplanation: "'Bien que' introduit une circonstancielle de concession. Le subjonctif est attendu.",
+    topicId: 'proposition'
+  },
+  {
+    id: 25,
+    rawText: "André mange une pomme et Léo lit un roman.",
+    bracketedText: "[André mange une pomme] Prop 1 [et Léo lit un roman] Prop 2",
+    verbs: ["mange", "lit"],
+    propositions: [
+      { text: "André mange une pomme", type: "Principale" },
+      { text: "Léo lit un roman", type: "Coordonnées" }
+    ],
+    ruleExplanation: "'Et' coordonne deux propositions principales de même niveau.",
+    topicId: 'proposition'
+  },
+  {
+    id: 26,
+    rawText: "Comme il faisait froid, nous avons allumé le chauffage.",
+    bracketedText: "[Comme il faisait froid] Prop 2, [nous avons allumé le chauffage] Prop 1",
+    verbs: ["faisait", "avons allumé"],
+    propositions: [
+      { text: "nous avons allumé le chauffage", type: "Principale" },
+      { text: "Comme il faisait froid", type: "Subordonnée circonstancielle" }
+    ],
+    ruleExplanation: "'Comme' en tête de phrase introduit une circonstancielle de cause.",
+    topicId: 'proposition'
+  },
+  {
+    id: 27,
+    rawText: "On dit que la terre est ronde depuis l'Antiquité.",
+    bracketedText: "[On dit] Prop 1 [que la terre est ronde depuis l'Antiquité] Prop 2",
+    verbs: ["dit", "est"],
+    propositions: [
+      { text: "On dit", type: "Principale" },
+      { text: "que la terre est ronde depuis l'Antiquité", type: "Subordonnée complétive" }
+    ],
+    ruleExplanation: "'Que' introduit une complétive, COD du verbe 'dit'. Le verbe de la complétive est à l'indicatif.",
+    topicId: 'proposition'
+  },
+  {
+    id: 28,
+    rawText: "Tous ceux qui veulent participer sont les bienvenus.",
+    bracketedText: "[Tous ceux [qui veulent participer] Prop 2 sont les bienvenus] Prop 1",
+    verbs: ["veulent", "sont"],
+    propositions: [
+      { text: "Tous ceux sont les bienvenus", type: "Principale" },
+      { text: "qui veulent participer", type: "Subordonnée relative" }
+    ],
+    ruleExplanation: "'Qui' est un pronom relatif sujet du verbe 'veulent'.",
+    topicId: 'proposition'
   }
 ];
 
@@ -438,5 +534,37 @@ export const MODE_SENTENCES: ModeSentence[] = [
     modeType: 'gerondif',
     modeExplanation: 'Mode impersonnel — valeur adverbiale.',
     answer: '« En écoutant » est au gérondif, un mode impersonnel. Le groupe précise dans quelle circonstance elle révise et fonctionne comme un complément adverbial : il a une valeur adverbiale.'
+  },
+  {
+    id: 7,
+    rawText: 'Il faut que tu révises tes leçons.',
+    verbs: ['révises'],
+    modeType: 'subjonctif',
+    modeExplanation: 'Mode personnel — valeur de volonté / nécessité.',
+    answer: '« Révises » est au subjonctif, un mode personnel. La locution impersonnelle « il faut que » introduit une subordonnée complétive exigeant le subjonctif pour exprimer une nécessité.'
+  },
+  {
+    id: 8,
+    rawText: 'Travailler dur est la clé du succès.',
+    verbs: ['Travailler'],
+    modeType: 'infinitif',
+    modeExplanation: 'Mode impersonnel — valeur nominale.',
+    answer: '« Travailler » est à l\'infinitif, un mode impersonnel. Le groupe infinitif « Travailler dur » occupe la fonction de sujet du verbe « est » : il a une valeur nominale.'
+  },
+  {
+    id: 9,
+    rawText: 'Les offres soldées attirent les clients.',
+    verbs: ['soldées'],
+    modeType: 'participe',
+    modeExplanation: 'Mode impersonnel — valeur adjectivale.',
+    answer: '« Soldées » est un participe passé, un mode impersonnel. Il qualifie le nom « offres » en fonction d\'adjectif : il a une valeur adjectivale.'
+  },
+  {
+    id: 10,
+    rawText: 'En pratiquant chaque jour, vous progresserez rapidement.',
+    verbs: ['En pratiquant'],
+    modeType: 'gerondif',
+    modeExplanation: 'Mode impersonnel — valeur adverbiale.',
+    answer: '« En pratiquant » est au gérondif, un mode impersonnel. Le groupe adverbial précise la circonstance dans laquelle l\'action principale se déroule : il a une valeur adverbiale.'
   }
 ];
