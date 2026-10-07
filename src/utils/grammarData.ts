@@ -340,7 +340,7 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
     verbs: ["insistes", "accepte"],
     propositions: [
       { text: "j'accepte ton invitation", type: "Principale" },
-      { text: "Puisque tu insistes", type: "Subordonnée circumstantialle" }
+      { text: "Puisque tu insistes", type: "Subordonnée circonstancielle" }
     ],
     ruleExplanation: "'Puisque' introduit une circonstance de cause.",
     topicId: 'circonstancielle'

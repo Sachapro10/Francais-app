@@ -225,15 +225,16 @@ export default function OralExamView({ etude, onComplete }: OralExamViewProps) {
       </div>
 
       {/* Progress Phases Bar */}
-      <div className="grid grid-cols-5 gap-1.5 sm:gap-2 text-center text-xs font-medium">
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 sm:gap-2 text-center text-xs font-medium">
         {[
           { id: 'reading', label: '1. Lecture', time: '~1 min 30' },
-          { id: 'presentation', label: '2. Intro & Problématique', time: '~1 min 30' },
-          { id: 'explication', label: '3. Explication Linéaire', time: '~7 min 30' },
-          { id: 'conclusion', label: '4. Conclusion', time: '~1 min 30' },
-          { id: 'completed', label: '5. Bilan', time: 'Fin' },
-        ].map((p, idx) => {
-          const stageOrder = ['intro', 'reading', 'presentation', 'explication', 'conclusion', 'completed'];
+          { id: 'presentation', label: '2. Intro', time: '~1 min 30' },
+          { id: 'explication', label: '3. Explication', time: '~6 min 30' },
+          { id: 'conclusion', label: '4. Conclusion', time: '~1 min 00' },
+          { id: 'grammar', label: '5. Grammaire', time: '2 pts' },
+          { id: 'completed', label: '6. Bilan', time: 'Fin' },
+        ].map((p) => {
+          const stageOrder = ['intro', 'reading', 'presentation', 'explication', 'conclusion', 'grammar', 'completed'];
           const isCurrent = stage === p.id;
           const isPast = stageOrder.indexOf(stage) > stageOrder.indexOf(p.id);
 
@@ -494,14 +495,14 @@ export default function OralExamView({ etude, onComplete }: OralExamViewProps) {
         <div className="wood-panel paper-sheet rounded-xl p-6 space-y-6">
           <div className="flex items-center justify-between border-b border-white/5 pb-4">
             <div>
-              <span className="text-xs text-amber-400 font-semibold uppercase tracking-wider">Étape 4 / 4</span>
-              <h2 className="text-xl font-serif-literary font-bold text-white">Conclusion & Ouverture (1 min 30)</h2>
+              <span className="text-xs text-amber-400 font-semibold uppercase tracking-wider">Étape 4 / 5</span>
+              <h2 className="text-xl font-serif-literary font-bold text-white">Conclusion & Ouverture (1 min 00)</h2>
             </div>
             <button
               onClick={nextStep}
               className="copper-action px-5 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center gap-1.5 hover:scale-105 transition-all"
             >
-              Terminer l’oral <CheckCircle2 size={16} />
+              Question de Grammaire (2 pts) <ChevronRight size={16} />
             </button>
           </div>
 
@@ -514,6 +515,131 @@ export default function OralExamView({ etude, onComplete }: OralExamViewProps) {
               <li>Rappelez l’intérêt principal du texte (l’enjeu poétique, dramatique ou argumentatif).</li>
               <li>Proposez une <strong>ouverture</strong> (autre texte du parcours, résonance artistique ou culturelle).</li>
             </ul>
+          </div>
+        </div>
+      )}
+
+      {stage === 'grammar' && (
+        <div className="wood-panel paper-sheet rounded-xl p-6 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/5 pb-4 gap-3">
+            <div>
+              <span className="text-xs text-amber-400 font-semibold uppercase tracking-wider">Étape 5 / 5</span>
+              <h2 className="text-xl font-serif-literary font-bold text-white flex items-center gap-2">
+                Question de Grammaire EAF (2 points sur 20)
+              </h2>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={prevStep} className="px-3 py-2 rounded-lg text-xs bg-slate-800 text-slate-300 hover:bg-slate-700">Retour</button>
+              <button
+                onClick={nextStep}
+                className="copper-action px-5 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center gap-1.5 hover:scale-105 transition-all"
+              >
+                Terminer l’oral <CheckCircle2 size={16} />
+              </button>
+            </div>
+          </div>
+
+          {/* Theme selector pills for oral question */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400 font-medium">Choisissez ou tirez au sort une des 7 questions officielles :</span>
+              <button
+                onClick={() => {
+                  const randomTopic = EAF_GRAMMAR_TOPICS[Math.floor(Math.random() * EAF_GRAMMAR_TOPICS.length)];
+                  setSelectedGrammarTopicId(randomTopic.id);
+                  setShowGrammarAnswer(false);
+                }}
+                className="text-amber-400 hover:underline font-bold flex items-center gap-1"
+              >
+                <Sparkles size={13} /> Tirer au sort
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {EAF_GRAMMAR_TOPICS.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => {
+                    setSelectedGrammarTopicId(t.id);
+                    setShowGrammarAnswer(false);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    selectedGrammarTopicId === t.id
+                      ? 'bg-amber-500 text-slate-950 shadow-md font-bold'
+                      : 'bg-slate-900 text-slate-400 hover:bg-slate-800 border border-white/5'
+                  }`}
+                >
+                  {t.shortName}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Active EAF Grammar Question Card */}
+          <div className="bg-slate-900/80 rounded-2xl p-6 border border-amber-500/30 space-y-5">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <GraduationCap size={18} className="text-amber-400" />
+                <h3 className="font-bold text-white text-base font-serif-literary">
+                  {activeGrammarTopic.title}
+                </h3>
+              </div>
+              <span className="text-xs bg-amber-500/20 text-amber-300 font-bold px-2.5 py-1 rounded-full border border-amber-500/30">
+                2 points
+              </span>
+            </div>
+
+            {/* First Example Question */}
+            {activeGrammarTopic.examples.length > 0 && (
+              <div className="space-y-4">
+                <div className="p-4 rounded-xl bg-slate-950/80 border border-white/10 space-y-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-amber-400">Consigne de l’examinateur :</span>
+                  <p className="text-base text-white font-serif-literary font-medium">
+                    « {activeGrammarTopic.examples[0].question} »
+                  </p>
+                  <p className="text-xs text-slate-400 italic">
+                    Phrase support : « {activeGrammarTopic.examples[0].sentence} »
+                  </p>
+                </div>
+
+                {/* Response Method Steps */}
+                <div className="bg-slate-950/60 p-4 rounded-xl border border-white/5 space-y-2">
+                  <div className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                    <FileText size={14} /> Structure de votre réponse orale (2-3 min) :
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-300">
+                    {activeGrammarTopic.methodSteps.map((step, idx) => (
+                      <div key={idx} className="p-2 bg-slate-900/60 rounded-lg border border-white/5">
+                        {step}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Reveal Model Answer Button & Answer Box */}
+                <div className="space-y-2 pt-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-400 font-medium">Corrigé type & Barème :</span>
+                    <button
+                      onClick={() => setShowGrammarAnswer(!showGrammarAnswer)}
+                      className="flex items-center gap-1.5 text-xs text-amber-300 hover:text-white font-bold bg-amber-500/20 hover:bg-amber-500/30 px-3 py-1.5 rounded-lg border border-amber-500/30 transition-all"
+                    >
+                      {showGrammarAnswer ? <EyeOff size={14} /> : <Eye size={14} />}
+                      <span>{showGrammarAnswer ? 'Masquer la réponse' : 'Révéler la réponse rédigée (2 pts)'}</span>
+                    </button>
+                  </div>
+
+                  {showGrammarAnswer && (
+                    <div className="p-4 rounded-xl bg-indigo-950/60 border border-indigo-500/30 space-y-2 text-xs text-slate-200 leading-relaxed animate-in fade-in duration-300">
+                      <div className="font-bold text-amber-300">Modèle de réponse attendu à l’oral :</div>
+                      <p>{activeGrammarTopic.examples[0].answer}</p>
+                      <div className="text-amber-400 font-medium pt-1 border-t border-white/10">
+                        {activeGrammarTopic.examples[0].bareme}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

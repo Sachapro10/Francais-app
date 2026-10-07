@@ -659,8 +659,8 @@ export default function GrammarView() {
                   Précédent
                 </button>
                 <button
-                  onClick={() => setCurrentPage(p => Math.min(TOTAL_PAGES, p + 1))}
-                  disabled={currentPage === TOTAL_PAGES}
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
                   className="copper-action px-10 py-4 rounded-2xl text-white font-bold transition-all disabled:opacity-20"
                 >
                   Phrase suivante
@@ -679,11 +679,11 @@ export default function GrammarView() {
         >
           <ChevronLeft size={14} /> Phrase précédente
         </button>
-        <span className="text-[10px] font-mono tracking-widest">GRAMMAR_ENGINE_V2</span>
+        <span className="text-[10px] font-mono tracking-widest">EAF_GRAMMAR_ENGINE_V3</span>
         <button
-          onClick={() => setCurrentPage(p => Math.min(TOTAL_PAGES, p + 1))}
+          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
           className="flex items-center gap-2 text-xs hover:text-white transition-colors"
-          disabled={currentPage === TOTAL_PAGES}
+          disabled={currentPage === totalPages}
         >
           Phrase suivante <ChevronRight size={14} />
         </button>
