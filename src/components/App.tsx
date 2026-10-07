@@ -3,7 +3,7 @@ import confetti from 'canvas-confetti';
 import {
   BookOpen, Upload, Layers, Target, Trophy, ChevronRight,
   ChevronLeft, CheckCircle2, XCircle, HelpCircle, Eye, EyeOff,
-  MousePointerClick, Sparkles, RotateCcw, List, Edit3, BarChart3, Plus, Check, CloudOff, Library, Trash2, Clock, Search, Download, FolderOpen
+  MousePointerClick, Sparkles, RotateCcw, List, Edit3, BarChart3, Plus, Check, CloudOff, Library, Trash2, Clock, Search, Download, FolderOpen, Mic
 } from 'lucide-react';
 import { EtudeLineaire, CitationItem, ViewMode, Movement } from '../types/etude';
 import { parseDocxFile } from '../utils/docxParser';
@@ -16,6 +16,7 @@ import ConfettiCelebration from './ConfettiCelebration';
 import PasteView from './PasteView';
 import WeakPointsView from './WeakPointsView';
 import GrammarView from './GrammarView';
+import OralExamView from './OralExamView';
 
 interface SavedAnalysis {
   id: string;
@@ -132,6 +133,7 @@ export default function App({}: {}) {
 
   const navItems: { mode: ViewMode; label: string; icon: React.ReactNode; desc: string }[] = [
     { mode: 'study', label: 'Étude', icon: <BookOpen size={18} />, desc: 'Lire et réviser' },
+    { mode: 'oral', label: 'Oral 12min', icon: <Mic size={18} />, desc: 'Simulation oral du Bac' },
     { mode: 'quiz', label: 'Quiz', icon: <Target size={18} />, desc: 'Tester ses connaissances' },
     { mode: 'flashcards', label: 'Cartes', icon: <Layers size={18} />, desc: 'Mémoriser les procédés' },
     { mode: 'grammar', label: 'Grammaire', icon: <Sparkles size={18} />, desc: 'Réviser les propositions' },
@@ -397,6 +399,7 @@ export default function App({}: {}) {
       {/* Main content */}
       <main className={`app-main flex-1 min-h-0 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-3 sm:py-4 ${view === 'study' ? 'study-main' : ''}`}>
         {view === 'study' && <StudyView etude={etude} />}
+        {view === 'oral' && <OralExamView etude={etude} onComplete={triggerConfetti} />}
         {view === 'quiz' && <QuizView etude={etude} analysisId={currentId} onComplete={triggerConfetti} />}
         {view === 'flashcards' && <FlashcardView etude={etude} analysisId={currentId} />}
         {view === 'weakPoints' && <WeakPointsView etude={etude} analysisId={currentId} onStartReview={() => setView('quiz')} />}

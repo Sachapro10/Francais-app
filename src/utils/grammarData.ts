@@ -10,7 +10,185 @@ export interface GrammarSentence {
   verbs: string[];
   propositions: PropositionDetail[];
   ruleExplanation?: string;
+  topicId?: string;
 }
+
+export interface EafGrammarTopic {
+  id: string;
+  title: string;
+  shortName: string;
+  officialTheme: string;
+  description: string;
+  methodSteps: string[];
+  examples: {
+    question: string;
+    sentence: string;
+    answer: string;
+    bareme: string;
+  }[];
+}
+
+export const EAF_GRAMMAR_TOPICS: EafGrammarTopic[] = [
+  {
+    id: 'negation',
+    title: '1. La Négation (Totale, Partielle, Restrictive)',
+    shortName: 'Négation',
+    officialTheme: 'La négation : formes et portée',
+    description: 'Identifier le type de négation, sa portée et effectuer la transformation affirmative.',
+    methodSteps: [
+      '1. Identifier les adverbes ou pronoms de la négation (ne...pas, ne...jamais, ne...personne, ne...rien, ne...aucun).',
+      '2. Préciser si la négation est totale (porte sur toute la proposition) ou partielle (porte sur un seul élément).',
+      '3. Relever les cas particuliers : la négation restrictive (ne...que = seulement) ou l\'emploi expletif.',
+      '4. Effectuer la transformation à la forme affirmative pour justifier votre analyse.'
+    ],
+    examples: [
+      {
+        question: 'Analysez la négation dans la phrase suivante : « Les parfums ne font pas frissonner sa narine » (v.12).',
+        sentence: 'Les parfums ne font pas frissonner sa narine.',
+        answer: 'Il s’agit d’une négation totale. Elle est exprimée par les deux adverbes corrélatifs « ne » (adverbe discordantiel) et « pas » (adverbe forclusif) qui encadrent le verbe conjugué « font ». Elle porte sur l’ensemble de la proposition. À la forme affirmative, la phrase devient : « Les parfums font frissonner sa narine ».',
+        bareme: '1 pt pour l’identification (totale + mots ne...pas) / 1 pt pour l’analyse de la portée et la transformation affirmative.'
+      },
+      {
+        question: 'Analysez la négation dans : « C’est un petit val qui ne mousse que de rayons ».',
+        sentence: 'C’est un petit val qui ne mousse que de rayons.',
+        answer: 'Il s’agit d’une négation restrictive (ou fausse négation) exprimée par « ne...que ». Elle a la valeur de l’adverbe d’intensité « seulement ». À la forme affirmative restrictive, la phrase équivaut à : « C’est un petit val qui mousse seulement de rayons ».',
+        bareme: '1 pt pour la distinction restriction vs négation / 1 pt pour la paraphrase explicative.'
+      }
+    ]
+  },
+  {
+    id: 'interrogation',
+    title: '2. L’Interrogation (Directe, Indirecte, Totale, Partielle)',
+    shortName: 'Interrogation',
+    officialTheme: 'L’interrogation : sintaxe et valeurs',
+    description: 'Distinguer interrogation directe/indirecte, totale/partielle et identifier le registre de langue.',
+    methodSteps: [
+      '1. Distinguer l\'interrogation directe (ponctue par ?) et l\'interrogation indirecte (proposition subordonnée complétive).',
+      '2. Déterminer si l\'interrogation est totale (réponse par oui/non) ou partielle (porte sur un élément représenté par un mot interrogatif).',
+      '3. Analyser la syntaxe : inversion du sujet, mot interrogatif (qui, que, où, comment), ou présence de « est-ce que ».'
+    ],
+    examples: [
+      {
+        question: 'Analysez la forme interrogative : « Pourquoi la rivière chante-t-elle dans la vallée ? »',
+        sentence: 'Pourquoi la rivière chante-t-elle dans la vallée ?',
+        answer: 'C’est une interrogation directe (présence du point d’interrogation et reprise du sujet par le pronom « elle »). Elle est partielle car elle porte sur la cause, introduite par le mot interrogatif « pourquoi ». Le niveau de langue est soutenu avec inversion complexe du sujet.',
+        bareme: '1 pt pour directe + partielle / 1 pt pour la syntaxe (mot interrogatif + inversion).'
+      }
+    ]
+  },
+  {
+    id: 'relative',
+    title: '3. La Proposition Subordonnée Relative',
+    shortName: 'Sub. Relative',
+    officialTheme: 'La proposition subordonnée relative',
+    description: 'Identifier la proposition relative, trouver son antécédent, et préciser la fonction du pronom relatif.',
+    methodSteps: [
+      '1. Délimiter la proposition subordonnée relative (du pronom relatif jusqu\'au verbe de la relative).',
+      '2. Identifier son antécédent (le nom ou pronom qu\'elle complète dans la principale).',
+      '3. Donner la nature du pronom relatif (qui, que, dont, où, lequel...) et sa fonction propre dans la subordonnée (Sujet, COD, COI, CC).'
+    ],
+    examples: [
+      {
+        question: 'Analysez la subordonnée relative dans : « C’est un trou de verdure où chante une rivière » (v.1).',
+        sentence: 'C’est un trou de verdure où chante une rivière.',
+        answer: 'La proposition subordonnée relative est « où chante une rivière ». Elle est introduite par le pronom relatif « où » et complète l’antécédent « trou de verdure ». Dans la subordonnée, le pronom relatif « où » a pour fonction Complément Circonstanciel de Lieu du verbe « chante » (dont le sujet inversé est « une rivière »).',
+        bareme: '1 pt pour la délimitation et l’antécédent / 1 pt pour la nature et fonction du pronom relatif.'
+      },
+      {
+        question: 'Analysez la subordonnée relative dans : « Le soldat qui dort dans l’herbe est jeune ».',
+        sentence: 'Le soldat qui dort dans l’herbe est jeune.',
+        answer: '« qui dort dans l’herbe » est une proposition subordonnée relative introduite par le pronom relatif simple « qui ». Elle a pour antécédent le nom « soldat ». Le pronom relatif « qui » a pour fonction Sujet du verbe « dort ».',
+        bareme: '1 pt pour l’antécédent / 1 pt pour la fonction sujet.'
+      }
+    ]
+  },
+  {
+    id: 'completive',
+    title: '4. La Proposition Subordonnée Complétive',
+    shortName: 'Sub. Complétive',
+    officialTheme: 'La proposition subordonnée complétive',
+    description: 'Analyser la proposition complétive introduite par "que", sa fonction de COD et le mode du verbe.',
+    methodSteps: [
+      '1. Délimiter la proposition complétive introduite par la conjonction de subordination « que » (ou interrogative indirecte).',
+      '2. Montrer qu\'elle n\'a pas d\'antécédent et qu\'elle est essentielle (ne peut pas être supprimée).',
+      '3. Préciser sa fonction (COD du verbe principal) et justifier le mode du verbe subordonné (indicatif ou subjonctif).'
+    ],
+    examples: [
+      {
+        question: 'Analysez la proposition subordonnée dans : « Le poète montre que la nature berce le soldat ».',
+        sentence: 'Le poète montre que la nature berce le soldat.',
+        answer: '« que la nature berce le soldat » est une proposition subordonnée conjonctive complétive, introduite par la conjonction de subordination « que ». Elle n’a pas d’antécédent et occupe la fonction de Complément d’Objet Direct (COD) du verbe principal « montre ». Le verbe « berce » est au mode indicatif (fait certain).',
+        bareme: '1 pt pour la nature complétive + absence d’antécédent / 1 pt pour la fonction COD et le mode.'
+      }
+    ]
+  },
+  {
+    id: 'circonstancielle',
+    title: '5. Les Subordonnées Circonstancielles (Cause, But, Concession...)',
+    shortName: 'Sub. Circonstancielle',
+    officialTheme: 'Les propositions subordonnées circonstancielles',
+    description: 'Identifier le rapport logique exprimé (cause, conséquence, but, concession, condition) et la conjonction.',
+    methodSteps: [
+      '1. Délimiter la proposition subordonnée circonstancielle et repérer le subordonnant (parce que, bien que, pour que, si...).',
+      '2. Identifier le rapport logique exprimé (Cause, Conséquence, But, Concession/Opposition, Hypothèse/Condition, Temps).',
+      '3. Justifier l\'emploi du mode du verbe subordonné (subjonctif après bien que/pour que, indicatif après parce que).'
+    ],
+    examples: [
+      {
+        question: 'Analysez la subordonnée circonstancielle dans : « Nature, berce-le chaudement : car il a froid ».',
+        sentence: 'Nature, berce-le chaudement : car il a froid.',
+        answer: 'Bien que reliée par la conjonction de coordination « car », la proposition « il a froid » exprime un rapport logique de Cause. S’il s’agissait d’une subordonnée introduite par « parce que », ce serait une subordonnée circonstancielle de cause au mode indicatif.',
+        bareme: '1 pt pour l’expression de la cause / 1 pt pour l’analyse syntaxique.'
+      },
+      {
+        question: 'Analysez la subordonnée dans : « Bien qu’il soit au soleil, le soldat a froid ».',
+        sentence: 'Bien qu’il soit au soleil, le soldat a froid.',
+        answer: '« Bien qu’il soit au soleil » est une proposition subordonnée circonstancielle de concession, introduite par la locution conjonctive « bien que ». Elle emploie le verbe « soit » au mode subjonctif (exigé par bien que).',
+        bareme: '1 pt pour la concession / 1 pt pour l’explication du mode subjonctif.'
+      }
+    ]
+  },
+  {
+    id: 'temps_modes',
+    title: '6. Le Système Temporel & Valeur des Temps et Modes',
+    shortName: 'Temps & Modes',
+    officialTheme: 'Le système temporel et la valeur des temps/modes',
+    description: 'Analyser la valeur d’emploi des temps (présent de vérité générale, narration, imparfait descriptif/passé simple).',
+    methodSteps: [
+      '1. Identifier le temps et le mode du verbe conjugué.',
+      '2. Rattacher le verbe à son système temporel (système du présent / discours vs système du passé / récit).',
+      '3. Nommer précisément la valeur d\'emploi : présent de description, de vérité générale, de narration, d\'énonciation ; imparfait descriptif ou d\'habitude ; passé simple de premier plan.'
+    ],
+    examples: [
+      {
+        question: 'Analysez la valeur du présent dans : « C’est un trou de verdure où chante une rivière » (v.1).',
+        sentence: 'C’est un trou de verdure où chante une rivière.',
+        answer: 'Les verbes « est » et « chante » sont conjugués au présent de l’indicatif. Il s’agit d’un présent de description qui sert à peindre le tableau naturel bucolique et donner l’illusion de l’immédiateté sous les yeux du lecteur.',
+        bareme: '1 pt pour l’identification du temps/mode / 1 pt pour la valeur de description.'
+      }
+    ]
+  },
+  {
+    id: 'discours_rapporte',
+    title: '7. Le Discours Rapporté & Concordance des Temps',
+    shortName: 'Discours Rapporté',
+    officialTheme: 'Le discours rapporté et la concordance des temps',
+    description: 'Analyser les formes de discours direct, indirect et indirect libre et maitriser les transpositions.',
+    methodSteps: [
+      '1. Identifier la forme de discours rapporté (Direct avec guillemets, Indirect avec proposition complétive, Indirect libre).',
+      '2. Analyser les marquer du discours (verbe de parole, ponctuation, pronoms personnels, indicateurs spatio-temporels).',
+      '3. Expliciter les règles de concordance des temps lors de la transposition au passé (présent -> imparfait, futur -> conditionnel).'
+    ],
+    examples: [
+      {
+        question: 'Transposez au discours indirect au passé : « Le poète dit : "Le soldat dort dans le val." »',
+        sentence: 'Le poète dit : "Le soldat dort dans le val."',
+        answer: 'Au discours indirect au passé : « Le poète a dit que le soldat dormait dans le val. » Le présent « dort » devient un imparfait « dormait » en vertu de la concordance des temps, et les guillemets/deux-points sont remplacés par la subordination complétive avec « que ».',
+        bareme: '1 pt pour la subordination complétive / 1 pt pour la concordance du temps (imparfait).'
+      }
+    ]
+  }
+];
 
 export const GRAMMAR_SENTENCES: GrammarSentence[] = [
   {
@@ -33,7 +211,8 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
       { text: "Je pense", type: "Principale" },
       { text: "qu'il viendra demain soir", type: "Subordonnée complétive" }
     ],
-    ruleExplanation: "La proposition commence par 'que' et complète le verbe 'pense'."
+    ruleExplanation: "La proposition commence par 'que' et complète le verbe 'pense'.",
+    topicId: 'completive'
   },
   {
     id: 3,
@@ -55,7 +234,8 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
       { text: "Le chat est gris", type: "Principale" },
       { text: "qui dort sur le tapis", type: "Subordonnée relative" }
     ],
-    ruleExplanation: "'qui' est un pronom relatif qui complète le nom 'chat'."
+    ruleExplanation: "'qui' est un pronom relatif qui complète le nom 'chat'.",
+    topicId: 'relative'
   },
   {
     id: 5,
@@ -66,7 +246,8 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
       { text: "les oiseaux chantent", type: "Principale" },
       { text: "Quand le soleil se lève", type: "Subordonnée circonstancielle" }
     ],
-    ruleExplanation: "'Quand' introduit une circonstance de temps."
+    ruleExplanation: "'Quand' introduit une circonstance de temps.",
+    topicId: 'circonstancielle'
   },
   {
     id: 6,
@@ -88,7 +269,8 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
       { text: "Je sais", type: "Principale" },
       { text: "que tu as raison", type: "Subordonnée complétive" }
     ],
-    ruleExplanation: "Complétive introduite par 'que'."
+    ruleExplanation: "Complétive introduite par 'que'.",
+    topicId: 'completive'
   },
   {
     id: 8,
@@ -111,7 +293,8 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
       { text: "La maison est spacieuse", type: "Principale" },
       { text: "que nous avons achetée", type: "Subordonnée relative" }
     ],
-    ruleExplanation: "Le pronom relatif 'que' complète le nom 'maison'."
+    ruleExplanation: "Le pronom relatif 'que' complète le nom 'maison'.",
+    topicId: 'relative'
   },
   {
     id: 10,
@@ -122,7 +305,8 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
       { text: "nous irons au cinéma", type: "Principale" },
       { text: "Si tu viens demain", type: "Subordonnée circonstancielle" }
     ],
-    ruleExplanation: "'Si' introduit une circonstance de condition."
+    ruleExplanation: "'Si' introduit une circonstance de condition.",
+    topicId: 'circonstancielle'
   },
   {
     id: 11,
@@ -134,7 +318,8 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
       { text: "il danse", type: "Coordonnées" },
       { text: "personne n'applaudit", type: "Coordonnées" }
     ],
-    ruleExplanation: "Propositions coordonnées par 'et' et 'mais'."
+    ruleExplanation: "Propositions coordonnées par 'et' et 'mais'.",
+    topicId: 'negation'
   },
   {
     id: 12,
@@ -145,7 +330,8 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
       { text: "Je crois", type: "Principale" },
       { text: "qu'elle a raison", type: "Subordonnée complétive" }
     ],
-    ruleExplanation: "La complétive complète le verbe 'crois'."
+    ruleExplanation: "La complétive complète le verbe 'crois'.",
+    topicId: 'completive'
   },
   {
     id: 13,
@@ -154,9 +340,10 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
     verbs: ["insistes", "accepte"],
     propositions: [
       { text: "j'accepte ton invitation", type: "Principale" },
-      { text: "Puisque tu insistes", type: "Subordonnée circonstancielle" }
+      { text: "Puisque tu insistes", type: "Subordonnée circumstantialle" }
     ],
-    ruleExplanation: "'Puisque' introduit une circonstance de cause."
+    ruleExplanation: "'Puisque' introduit une circonstance de cause.",
+    topicId: 'circonstancielle'
   },
   {
     id: 14,
@@ -167,7 +354,8 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
       { text: "Le livre est excellent", type: "Principale" },
       { text: "dont je t'ai parlé", type: "Subordonnée relative" }
     ],
-    ruleExplanation: "'dont' est un pronom relatif qui complète le nom 'livre'."
+    ruleExplanation: "'dont' est un pronom relatif qui complète le nom 'livre'.",
+    topicId: 'relative'
   },
   {
     id: 15,
@@ -189,7 +377,8 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
       { text: "je continue à travailler", type: "Principale" },
       { text: "Bien que je sois fatigué", type: "Subordonnée circonstancielle" }
     ],
-    ruleExplanation: "'Bien que' introduit une circonstance de concession."
+    ruleExplanation: "'Bien que' introduit une circonstance de concession.",
+    topicId: 'circonstancielle'
   },
   {
     id: 17,

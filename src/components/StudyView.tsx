@@ -1,9 +1,10 @@
 import { useState, useCallback, useMemo } from 'react';
 import { CitationItem, Movement, EtudeLineaire } from '../types/etude';
 import { findCitationRangesInPoem, getCitationQuotes } from '../utils/citationUtils';
+import FicheRevisionModal from './FicheRevisionModal';
 import {
   ChevronDown, ChevronRight, Quote,
-  Layers, MousePointerClick, BookOpen, Microscope
+  Layers, MousePointerClick, BookOpen, Microscope, Printer
 } from 'lucide-react';
 
 interface StudyViewProps {
@@ -26,6 +27,7 @@ interface ActiveCitation {
 
 export default function StudyView({ etude }: StudyViewProps) {
   const [activeCitation, setActiveCitation] = useState<ActiveCitation | null>(null);
+  const [showFicheModal, setShowFicheModal] = useState(false);
   const [expandedMovements, setExpandedMovements] = useState<Set<string>>(
     new Set(etude.movements.map(m => m.id))
   );
@@ -140,15 +142,25 @@ export default function StudyView({ etude }: StudyViewProps) {
               <div className="font-semibold text-white">{etude.title}</div>
               {etude.author && <div className="text-xs text-slate-500">{etude.author}</div>}
             </div>
-            {activeCitation && (
+            <div className="ml-auto flex items-center gap-2">
               <button
-                onClick={() => setActiveCitation(null)}
-                className="ml-auto text-xs text-slate-500 hover:text-white flex items-center gap-1 transition-colors"
+                onClick={() => setShowFicheModal(true)}
+                className="flex items-center gap-1.5 text-xs text-amber-300 hover:text-white bg-amber-500/10 hover:bg-amber-500/20 px-3 py-1.5 rounded-lg border border-amber-500/20 transition-all font-medium"
+                title="Générer et imprimer la fiche de révision"
               >
-                <span className="hidden sm:inline">Réinitialiser</span>
-                ✕
+                <Printer size={14} />
+                <span className="hidden sm:inline">Fiche PDF / Imprimer</span>
               </button>
-            )}
+              {activeCitation && (
+                <button
+                  onClick={() => setActiveCitation(null)}
+                  className="text-xs text-slate-500 hover:text-white flex items-center gap-1 transition-colors px-2 py-1"
+                >
+                  <span className="hidden sm:inline">Réinitialiser</span>
+                  ✕
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="study-poem-content px-5 py-4 lg:max-h-[calc(100dvh-10.5rem)] lg:overflow-y-auto study-scroll-panel">
@@ -279,6 +291,10 @@ export default function StudyView({ etude }: StudyViewProps) {
         })}
         </div>
       </div>
+
+      {showFicheModal && (
+        <FicheRevisionModal etude={etude} onClose={() => setShowFicheModal(false)} />
+      )}
     </div>
   );
 }

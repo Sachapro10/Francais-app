@@ -1,9 +1,10 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   BookOpen, ChevronLeft, ChevronRight, Eraser,
-  Check, X, AlertCircle, Sparkles, MousePointer2
+  Check, X, AlertCircle, Sparkles, MousePointer2,
+  GraduationCap, HelpCircle, Layers, FileText, Eye, EyeOff
 } from 'lucide-react';
-import { GRAMMAR_SENTENCES, GrammarSentence } from '../utils/grammarData';
+import { GRAMMAR_SENTENCES, GrammarSentence, EAF_GRAMMAR_TOPICS } from '../utils/grammarData';
 
 interface PropHighlight {
   propIndex: number;
@@ -12,12 +13,6 @@ interface PropHighlight {
 
 type VerificationStep = 'highlighting' | 'select-principale' | 'classifying' | 'complete';
 
-interface CorrigeState {
-  showCorrige: boolean;
-}
-
-const TOTAL_PAGES = GRAMMAR_SENTENCES.length;
-
 const PROP_COLORS = [
   'bg-amber-400 text-amber-950 border-amber-500',
   'bg-blue-400 text-blue-950 border-blue-500',
@@ -25,14 +20,8 @@ const PROP_COLORS = [
   'bg-purple-400 text-purple-950 border-purple-500',
 ];
 
-const PROP_GHOST_COLORS = [
-  'bg-amber-400/20 text-amber-200 border-amber-500/30',
-  'bg-blue-400/20 text-blue-200 border-blue-500/30',
-  'bg-emerald-400/20 text-emerald-200 border-emerald-500/30',
-  'bg-purple-400/20 text-purple-200 border-purple-500/30',
-];
-
 export default function GrammarView() {
+  const [selectedTopicId, setSelectedTopicId] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [activePropIndex, setActivePropIndex] = useState(0);
   const [highlights, setHighlights] = useState<PropHighlight[]>([]);
@@ -42,17 +31,40 @@ export default function GrammarView() {
   const [secondaryTypes, setSecondaryTypes] = useState<Record<number, string>>({});
   const [selectedPrincipaleIndex, setSelectedPrincipaleIndex] = useState<number | null>(null);
   const [showCorrige, setShowCorrige] = useState(false);
+  const [revealedExamples, setRevealedExamples] = useState<Set<number>>(new Set());
 
   const isDraggingRef = useRef(false);
   const dragStartIdxRef = useRef<number | null>(null);
 
+  // Active topic object if any
+  const selectedTopic = useMemo(() => {
+    return EAF_GRAMMAR_TOPICS.find(t => t.id === selectedTopicId) || null;
+  }, [selectedTopicId]);
+
+  // Filtered sentences based on selected topic
+  const filteredSentences = useMemo(() => {
+    if (selectedTopicId === 'all') return GRAMMAR_SENTENCES;
+    const match = GRAMMAR_SENTENCES.filter(s => s.topicId === selectedTopicId);
+    return match.length > 0 ? match : GRAMMAR_SENTENCES;
+  }, [selectedTopicId]);
+
+  const totalPages = filteredSentences.length;
+
   const currentSentence = useMemo(() => {
-    return GRAMMAR_SENTENCES[currentPage - 1];
-  }, [currentPage]);
+    const idx = Math.min(currentPage - 1, totalPages - 1);
+    return filteredSentences[Math.max(0, idx)] || GRAMMAR_SENTENCES[0];
+  }, [currentPage, filteredSentences, totalPages]);
 
   const words = useMemo(() => {
     return currentSentence.rawText.split(/\s+/).filter(w => w.length > 0);
   }, [currentSentence]);
+
+  // Reset page when topic changes
+  const handleSelectTopic = (topicId: string) => {
+    setSelectedTopicId(topicId);
+    setCurrentPage(1);
+    setRevealedExamples(new Set());
+  };
 
   // Reset state when changing pages
   useEffect(() => {
@@ -64,7 +76,7 @@ export default function GrammarView() {
     setSecondaryTypes({});
     setSelectedPrincipaleIndex(null);
     setShowCorrige(false);
-  }, [currentPage]);
+  }, [currentPage, selectedTopicId]);
 
   const toggleWord = useCallback((wordIdx: number) => {
     if (verificationStep !== 'highlighting') return;
@@ -255,24 +267,149 @@ export default function GrammarView() {
         <div>
           <h2 className="text-3xl font-bold text-white font-serif-literary flex items-center gap-3">
             <Sparkles size={28} className="text-amber-400 animate-pulse" />
-            Analyse Grammaticale
+            Grammaire Bac EAF (2 points)
           </h2>
-          <p className="text-sm text-slate-400 mt-1">Découpez la phrase en propositions et identifiez leur nature.</p>
+          <p className="text-sm text-slate-400 mt-1">
+            Entraînement aux 7 questions officielles de grammaire pour l'oral du Bac de Français.
+          </p>
         </div>
 
         <div className="flex items-center gap-4 bg-slate-800/50 p-2 rounded-2xl border border-white/5">
           <div className="flex flex-col items-end px-2">
             <span className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Progression</span>
-            <span className="text-sm font-mono text-white">{currentPage} / {TOTAL_PAGES}</span>
+            <span className="text-sm font-mono text-white">{currentPage} / {totalPages}</span>
           </div>
           <div className="w-32 h-2 bg-slate-700 rounded-full overflow-hidden">
             <div
               className="h-full bg-indigo-500 transition-all duration-1000 ease-out"
-              style={{ width: `${(currentPage / TOTAL_PAGES) * 100}%` }}
+              style={{ width: `${(currentPage / totalPages) * 100}%` }}
             />
           </div>
         </div>
       </div>
+
+      {/* 7 Official EAF Topics Selector Bar */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 text-xs font-bold text-amber-400 uppercase tracking-wider">
+          <GraduationCap size={16} />
+          Les 7 Thèmes Officiels EAF du Bac :
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => handleSelectTopic('all')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
+              selectedTopicId === 'all'
+                ? 'bg-amber-500 text-slate-950 shadow-md font-bold'
+                : 'bg-slate-900/80 text-slate-300 hover:bg-slate-800 border border-white/5'
+            }`}
+          >
+            Tous les exercices
+          </button>
+          {EAF_GRAMMAR_TOPICS.map(topic => {
+            const isSelected = selectedTopicId === topic.id;
+            return (
+              <button
+                key={topic.id}
+                onClick={() => handleSelectTopic(topic.id)}
+                className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
+                  isSelected
+                    ? 'bg-indigo-600 text-white shadow-lg border border-indigo-400'
+                    : 'bg-slate-900/80 text-slate-300 hover:bg-slate-800 border border-white/5'
+                }`}
+              >
+                {topic.shortName}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Official EAF Theme Method & Sample Question Sheet if topic selected */}
+      {selectedTopic && (
+        <div className="bg-slate-900/90 border border-indigo-500/30 rounded-3xl p-6 sm:p-8 space-y-6 animate-in slide-in-from-top-4 duration-300">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
+            <div>
+              <span className="text-xs uppercase tracking-wider font-bold text-amber-400">
+                Fiche Méthode Officielle EAF — {selectedTopic.officialTheme}
+              </span>
+              <h3 className="text-xl font-bold text-white font-serif-literary mt-0.5">
+                {selectedTopic.title}
+              </h3>
+            </div>
+            <span className="text-xs bg-indigo-950 text-indigo-300 px-3 py-1 rounded-full border border-indigo-500/30 font-semibold self-start sm:self-auto">
+              Question de Grammaire (2 pts)
+            </span>
+          </div>
+
+          <p className="text-sm text-slate-300 leading-relaxed">
+            {selectedTopic.description}
+          </p>
+
+          {/* Method Steps for 2 pts */}
+          <div className="space-y-3 bg-slate-950/60 p-4 rounded-2xl border border-white/5">
+            <h4 className="text-xs font-bold text-amber-300 uppercase tracking-wide flex items-center gap-2">
+              <FileText size={15} /> Méthode de réponse à l'oral (4 étapes pour 2/2 pts) :
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-300">
+              {selectedTopic.methodSteps.map((step, idx) => (
+                <div key={idx} className="p-2.5 bg-slate-900/80 rounded-xl border border-white/5">
+                  {step}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Official EAF Exam Questions & Rédigé Answer */}
+          {selectedTopic.examples.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-wide flex items-center gap-2">
+                <HelpCircle size={15} /> Question Type Bac & Modèle de Réponse Rédigée :
+              </h4>
+
+              <div className="space-y-4">
+                {selectedTopic.examples.map((ex, exIdx) => {
+                  const isRevealed = revealedExamples.has(exIdx);
+                  return (
+                    <div key={exIdx} className="bg-slate-950/80 rounded-2xl p-4 sm:p-5 border border-white/10 space-y-3">
+                      <div className="text-sm font-semibold text-white flex items-start gap-2">
+                        <span className="w-5 h-5 rounded-md bg-amber-500/20 text-amber-300 text-xs flex items-center justify-center shrink-0 mt-0.5 font-bold">
+                          Q{exIdx + 1}
+                        </span>
+                        <span>{ex.question}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs pt-1 border-t border-white/5">
+                        <span className="text-amber-400 font-medium">Barème EAF : {ex.bareme}</span>
+                        <button
+                          onClick={() => {
+                            setRevealedExamples(prev => {
+                              const next = new Set(prev);
+                              if (next.has(exIdx)) next.delete(exIdx);
+                              else next.add(exIdx);
+                              return next;
+                            });
+                          }}
+                          className="flex items-center gap-1.5 text-indigo-400 hover:text-indigo-300 font-bold bg-indigo-500/10 hover:bg-indigo-500/20 px-3 py-1 rounded-lg transition-colors"
+                        >
+                          {isRevealed ? <EyeOff size={14} /> : <Eye size={14} />}
+                          <span>{isRevealed ? 'Masquer la réponse' : 'Voir la réponse rédigée'}</span>
+                        </button>
+                      </div>
+
+                      {isRevealed && (
+                        <div className="mt-3 p-4 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-xs text-slate-200 leading-relaxed animate-in fade-in duration-300">
+                          <div className="font-bold text-amber-300 mb-1">Réponse orale rédigée (2 pts) :</div>
+                          {ex.answer}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Main Study Area */}
       <div className="space-y-6">
