@@ -119,6 +119,79 @@ export function isStanzaTerm(term: string): boolean {
   );
 }
 
+/** Check if a term describes verses (e.g. "2 derniers vers", "1er vers", "quatrain") */
+export function isVerseDescriptionTerm(term: string): boolean {
+  const norm = normalizeCitationText(term);
+  if (!norm) return false;
+  return (
+    isStanzaTerm(term) ||
+    norm.includes('vers') ||
+    norm.includes('verset') ||
+    norm.includes('dernier') ||
+    norm.includes('premier') ||
+    norm.includes('1er')
+  );
+}
+
+/** Resolve line indices for verse or stanza description terms */
+export function getVerseDescriptionLineIndices(textLines: string[], term: string): number[] {
+  const norm = normalizeCitationText(term);
+  if (textLines.length === 0 || !norm) return [];
+  const totalLines = textLines.length;
+
+  if (isStanzaTerm(term)) {
+    return getStanzaLineIndices(textLines, term);
+  }
+
+  if (norm.includes('dernier')) {
+    let count = 1;
+    if (norm.includes('2') || norm.includes('deux')) count = 2;
+    else if (norm.includes('3') || norm.includes('trois')) count = 3;
+    else if (norm.includes('4') || norm.includes('quatre')) count = 4;
+    else if (norm.includes('derniers')) count = 2;
+
+    const startIdx = Math.max(0, totalLines - count);
+    const indices: number[] = [];
+    for (let i = startIdx; i < totalLines; i++) {
+      indices.push(i);
+    }
+    return indices;
+  }
+
+  if (norm.includes('premier') || norm.includes('1er')) {
+    let count = 1;
+    if (norm.includes('2') || norm.includes('deux')) count = 2;
+    else if (norm.includes('3') || norm.includes('trois')) count = 3;
+    else if (norm.includes('4') || norm.includes('quatre')) count = 4;
+
+    const endIdx = Math.min(totalLines, count);
+    const indices: number[] = [];
+    for (let i = 0; i < endIdx; i++) {
+      indices.push(i);
+    }
+    return indices;
+  }
+
+  if (norm.includes('2eme') || norm.includes('2e') || norm.includes('deuxieme') || norm.includes('second')) {
+    if (totalLines >= 2) return [1];
+  }
+  if (norm.includes('3eme') || norm.includes('3e') || norm.includes('troisieme')) {
+    if (totalLines >= 3) return [2];
+  }
+  if (norm.includes('4eme') || norm.includes('4e') || norm.includes('quatrieme')) {
+    if (totalLines >= 4) return [3];
+  }
+
+  const singleVerseMatch = norm.match(/(?:vers|verset)\s*(\d+)/);
+  if (singleVerseMatch) {
+    const vNum = parseInt(singleVerseMatch[1], 10);
+    const idx = vNum - 1;
+    if (idx >= 0 && idx < totalLines) return [idx];
+  }
+
+  return [];
+}
+
 /** Resolve line indices for a stanza term */
 export function getStanzaLineIndices(textLines: string[], term: string): number[] {
   const norm = normalizeCitationText(term);
@@ -188,13 +261,60 @@ export function findCitationRange(line: string, quote: string, sourceOffset = 0)
   const normalizedQuote = normalizeCitationText(quote);
   if (!normalizedQuote) return null;
   const normalizedLine = normalizedWithMap(line);
-  const normalizedOffset = normalizedLine.map.findIndex(index => index >= sourceOffset);
-  const found = normalizedLine.text.indexOf(normalizedQuote, normalizedOffset < 0 ? normalizedLine.text.length : normalizedOffset);
-  if (found < 0) return null;
-  const last = found + normalizedQuote.length - 1;
-  const start = normalizedLine.map[found];
-  const end = (normalizedLine.map[last] ?? start) + 1;
-  return { start, end };
+
+  const startsWithWordChar = /[a-z0-9]/i.test(normalizedQuote[0]);
+  const endsWithWordChar = /[a-z0-9]/i.test(normalizedQuote[normalizedQuote.length - 1]);
+
+  let searchPos = sourceOffset;
+  let normalizedOffset = normalizedLine.map.findIndex(index => index >= searchPos);
+  if (normalizedOffset < 0) normalizedOffset = normalizedLine.text.length;
+
+  while (searchPos < line.length) {
+    const found = normalizedLine.text.indexOf(normalizedQuote, normalizedOffset);
+    if (found < 0) return null;
+
+    const beforeChar = found > 0 ? normalizedLine.text[found - 1] : '';
+    const afterIndex = found + normalizedQuote.length;
+    const afterChar = afterIndex < normalizedLine.text.length ? normalizedLine.text[afterIndex] : '';
+
+    const validStart = !startsWithWordChar || !beforeChar || !/[a-z0-9]/i.test(beforeChar);
+    const validEnd = !endsWithWordChar || !afterChar || !/[a-z0-9]/i.test(afterChar);
+
+    const last = found + normalizedQuote.length - 1;
+    const start = normalizedLine.map[found];
+    const end = (normalizedLine.map[last] ?? start) + 1;
+
+    if (validStart && validEnd) {
+      return { start, end };
+    }
+
+    normalizedOffset = found + 1;
+    if (normalizedOffset >= normalizedLine.text.length) return null;
+    searchPos = normalizedLine.map[normalizedOffset] ?? (line.length + 1);
+  }
+
+  return null;
+}
+
+export function parseVersesInput(input: string): number[] {
+  const verses: number[] = [];
+  const parts = input.split(/[,;]/);
+  for (const part of parts) {
+    const rangeMatch = part.match(/(\d+)\s*[-–—]\s*(\d+)/);
+    if (rangeMatch) {
+      const start = parseInt(rangeMatch[1], 10);
+      const end = parseInt(rangeMatch[2], 10);
+      for (let v = Math.min(start, end); v <= Math.max(start, end); v++) {
+        if (!verses.includes(v)) verses.push(v);
+      }
+    } else {
+      const single = parseInt(part.trim(), 10);
+      if (!isNaN(single) && !verses.includes(single)) {
+        verses.push(single);
+      }
+    }
+  }
+  return verses.sort((a, b) => a - b);
 }
 
 /** Find all ranges in poem for a quote (supporting literal text, tirets, and stanzas) */
@@ -223,11 +343,23 @@ export function findCitationRangesInPoem(
     if (ranges.length > 0) return ranges;
   }
 
-  const checkStanza = isStanzaTerm(quote) || (procede && isStanzaTerm(procede));
-  if (checkStanza) {
-    const stanzaIndices = getStanzaLineIndices(textLines, quote) || (procede ? getStanzaLineIndices(textLines, procede) : []);
-    for (const lineIdx of stanzaIndices) {
+  const checkVerseDesc = isVerseDescriptionTerm(quote) || (procede && isVerseDescriptionTerm(procede));
+  if (checkVerseDesc) {
+    const descIndices = getVerseDescriptionLineIndices(textLines, quote);
+    const finalDescIndices = descIndices.length > 0
+      ? descIndices
+      : (procede ? getVerseDescriptionLineIndices(textLines, procede) : []);
+
+    for (const lineIdx of finalDescIndices) {
       if (lineIdx >= 0 && lineIdx < textLines.length) {
+        if (itemVerses && itemVerses.length > 0) {
+          const verseNum = lineIdx + 1;
+          const minV = Math.min(...itemVerses);
+          const maxV = Math.max(...itemVerses);
+          if (!itemVerses.includes(verseNum) && (verseNum < minV || verseNum > maxV)) {
+            continue;
+          }
+        }
         ranges.push({ lineIndex: lineIdx, start: 0, end: textLines[lineIdx].length });
       }
     }
@@ -235,15 +367,47 @@ export function findCitationRangesInPoem(
   }
 
   // Standard literal text match across poem lines
-  for (let lineIdx = 0; lineIdx < textLines.length; lineIdx++) {
-    const line = textLines[lineIdx];
-    let searchFrom = 0;
-    let range = findCitationRange(line, quote, searchFrom);
-    while (range) {
-      ranges.push({ lineIndex: lineIdx, start: range.start, end: range.end });
-      searchFrom = range.end;
-      range = findCitationRange(line, quote, searchFrom);
+  const searchLines = (lineIndices: number[]) => {
+    for (const lineIdx of lineIndices) {
+      if (lineIdx < 0 || lineIdx >= textLines.length) continue;
+      const line = textLines[lineIdx];
+      let searchFrom = 0;
+      let range = findCitationRange(line, quote, searchFrom);
+      while (range) {
+        ranges.push({ lineIndex: lineIdx, start: range.start, end: range.end });
+        searchFrom = range.end;
+        range = findCitationRange(line, quote, searchFrom);
+      }
     }
+  };
+
+  if (itemVerses && itemVerses.length > 0) {
+    // Pass 1: exact verses listed in itemVerses
+    const exactLineIndices = itemVerses
+      .map(v => v - 1)
+      .filter(i => i >= 0 && i < textLines.length);
+
+    searchLines(exactLineIndices);
+
+    // Pass 2: fallback to any verse between min and max verse range if no match on exact verses
+    if (ranges.length === 0 && itemVerses.length >= 2) {
+      const minV = Math.min(...itemVerses);
+      const maxV = Math.max(...itemVerses);
+      const rangeLineIndices: number[] = [];
+      for (let v = minV; v <= maxV; v++) {
+        const idx = v - 1;
+        if (idx >= 0 && idx < textLines.length && !exactLineIndices.includes(idx)) {
+          rangeLineIndices.push(idx);
+        }
+      }
+      if (rangeLineIndices.length > 0) {
+        searchLines(rangeLineIndices);
+      }
+    }
+  } else {
+    // No itemVerses specified: search all lines
+    const allIndices = Array.from({ length: textLines.length }, (_, i) => i);
+    searchLines(allIndices);
   }
 
   return ranges;

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { EtudeLineaire, CitationItem, Movement } from '../types/etude';
-import { deriveCitationQuotes } from '../utils/citationUtils';
+import { deriveCitationQuotes, parseVersesInput } from '../utils/citationUtils';
 import { checkEtudeQuality } from '../utils/qualityChecks';
 import QualityWarnings from './QualityWarnings';
 import ExcerptEditor from './ExcerptEditor';
@@ -108,7 +108,7 @@ export default function EditorView({ etude, onSave }: EditorViewProps) {
                 c.id === citationId
                   ? field === 'citation'
                     ? { ...c, citation: value, quotes: deriveCitationQuotes(value), matchedRanges: undefined }
-                    : { ...c, [field]: field === 'verses' ? value.split(',').map(v => parseInt(v.trim())).filter(v => !isNaN(v)) : value }
+                    : { ...c, [field]: field === 'verses' ? parseVersesInput(value) : value }
                   : c
               ),
             }
