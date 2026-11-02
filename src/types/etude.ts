@@ -90,4 +90,4 @@ export interface MatchHighlight {
   interpretation: string;
 }
 
-export type ViewMode = 'study' | 'quiz' | 'flashcards' | 'weakPoints' | 'editor' | 'newText' | 'grammar' | 'oral';
+export type ViewMode = 'study' | 'quiz' | 'flashcards' | 'weakPoints' | 'editor' | 'newText' | 'grammar' | 'oral' | 'vocabulary';

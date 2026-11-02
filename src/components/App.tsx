@@ -3,7 +3,7 @@ import confetti from 'canvas-confetti';
 import {
   BookOpen, Upload, Layers, Target, Trophy, ChevronRight,
   ChevronLeft, CheckCircle2, XCircle, HelpCircle, Eye, EyeOff,
-  MousePointerClick, Sparkles, RotateCcw, List, Edit3, BarChart3, Plus, Check, CloudOff, Library, Trash2, Clock, Search, Download, FolderOpen, Mic
+  MousePointerClick, Sparkles, RotateCcw, List, Edit3, BarChart3, Plus, Check, CloudOff, Library, Trash2, Clock, Search, Download, FolderOpen, Mic, BookMarked
 } from 'lucide-react';
 import { EtudeLineaire, CitationItem, ViewMode, Movement } from '../types/etude';
 import { parseDocxFile } from '../utils/docxParser';
@@ -17,6 +17,7 @@ import PasteView from './PasteView';
 import WeakPointsView from './WeakPointsView';
 import GrammarView from './GrammarView';
 import OralExamView from './OralExamView';
+import VocabularyView from './VocabularyView';
 
 interface SavedAnalysis {
   id: string;
@@ -136,6 +137,7 @@ export default function App({}: {}) {
     { mode: 'oral', label: 'Oral 12min', icon: <Mic size={18} />, desc: 'Simulation oral du Bac' },
     { mode: 'quiz', label: 'Quiz', icon: <Target size={18} />, desc: 'Tester ses connaissances' },
     { mode: 'flashcards', label: 'Cartes', icon: <Layers size={18} />, desc: 'Mémoriser les procédés' },
+    { mode: 'vocabulary', label: 'Vocabulaire', icon: <BookMarked size={18} />, desc: 'Figures de style et termes' },
     { mode: 'grammar', label: 'Grammaire', icon: <Sparkles size={18} />, desc: 'Réviser les propositions' },
     { mode: 'weakPoints', label: 'Révisions', icon: <BarChart3 size={18} />, desc: 'Tableau de révision et points faibles' },
     { mode: 'editor', label: 'Éditer', icon: <Edit3 size={18} />, desc: 'Modifier le contenu' },
@@ -398,10 +400,11 @@ export default function App({}: {}) {
 
       {/* Main content */}
       <main className={`app-main flex-1 min-h-0 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-3 sm:py-4 ${view === 'study' ? 'study-main' : ''}`}>
-        {view === 'study' && <StudyView etude={etude} />}
+        {view === 'study' && <StudyView etude={etude} analysisId={currentId} />}
         {view === 'oral' && <OralExamView etude={etude} onComplete={triggerConfetti} />}
         {view === 'quiz' && <QuizView etude={etude} analysisId={currentId} onComplete={triggerConfetti} />}
         {view === 'flashcards' && <FlashcardView etude={etude} analysisId={currentId} />}
+        {view === 'vocabulary' && <VocabularyView />}
         {view === 'weakPoints' && <WeakPointsView etude={etude} analysisId={currentId} onStartReview={() => setView('quiz')} />}
         {view === 'editor' && <EditorView etude={etude} onSave={(newEtude) => { setEtude(newEtude); }} />}
         {view === 'newText' && (

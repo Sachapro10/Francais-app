@@ -1,12 +1,14 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { EtudeLineaire, CitationItem } from '../types/etude';
 import {
   Mic, Play, Pause, RotateCcw, ChevronRight, ChevronLeft,
   Eye, EyeOff, BookOpen, Layers, CheckCircle2, Trophy, Clock,
-  Sparkles, Target, Award, GraduationCap, HelpCircle, FileText
+  Sparkles, Target, Award, GraduationCap, HelpCircle, FileText,
+  Square, Trash2, Edit3, Check
 } from 'lucide-react';
 import { findCitationRangesInPoem, getCitationQuotes } from '../utils/citationUtils';
 import { EAF_GRAMMAR_TOPICS, EafGrammarTopic } from '../utils/grammarData';
+import { useAudioRecorder, Recording } from '../hooks/useAudioRecorder';
 
 interface OralExamViewProps {
   etude: EtudeLineaire;
@@ -28,6 +30,24 @@ export default function OralExamView({ etude, onComplete }: OralExamViewProps) {
   // EAF Grammar stage state
   const [selectedGrammarTopicId, setSelectedGrammarTopicId] = useState<string>('negation');
   const [showGrammarAnswer, setShowGrammarAnswer] = useState<boolean>(false);
+
+  // Audio recording
+  const {
+    isRecording,
+    recordings,
+    playbackRecordingId,
+    recordingDuration,
+    startRecording,
+    stopRecording,
+    playRecording,
+    stopPlayback,
+    deleteRecording,
+    renameRecording,
+    formatDuration,
+  } = useAudioRecorder();
+
+  const [editingRecordingId, setEditingRecordingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
 
   const activeGrammarTopic = useMemo(() => {
     return EAF_GRAMMAR_TOPICS.find(t => t.id === selectedGrammarTopicId) || EAF_GRAMMAR_TOPICS[0];
@@ -193,7 +213,7 @@ export default function OralExamView({ etude, onComplete }: OralExamViewProps) {
                 12 minutes
               </span>
             </h1>
-            <p className="text-xs text-slate-400">Simulation de l’explication linéaire orale du Bac</p>
+            <p className="text-xs text-slate-400">Simulation de l'explication linéaire orale du Bac</p>
           </div>
         </div>
 
@@ -267,13 +287,13 @@ export default function OralExamView({ etude, onComplete }: OralExamViewProps) {
               Prêt pour votre oral de Français ?
             </h2>
             <p className="text-sm text-slate-300 leading-relaxed max-w-md mx-auto">
-              Simulez la première partie de l’épreuve orale (12 minutes) : lecture expressive, introduction, explication linéaire mouvement par mouvement, et conclusion.
+              Simulez la première partie de l'épreuve orale (12 minutes) : lecture expressive, introduction, explication linéaire mouvement par mouvement, et conclusion.
             </p>
           </div>
 
           <div className="bg-slate-900/60 p-4 rounded-xl border border-white/5 text-left text-xs text-slate-400 space-y-2 max-w-md mx-auto">
             <div className="font-semibold text-slate-200 flex items-center gap-1.5">
-              <Sparkles size={14} className="text-amber-400" /> Recommandations pour l’oral :
+              <Sparkles size={14} className="text-amber-400" /> Recommandations pour l'oral :
             </div>
             <ul className="list-disc list-inside space-y-1">
               <li>Parlez distinctement à un rythme régulier (environ 120 mots/min).</li>
@@ -287,7 +307,7 @@ export default function OralExamView({ etude, onComplete }: OralExamViewProps) {
             className="copper-action px-8 py-3.5 rounded-xl font-semibold text-white hover:scale-105 transition-all shadow-lg flex items-center justify-center gap-2 mx-auto"
           >
             <Play size={18} />
-            Démarrer le chrono & l’oral
+            Démarrer le chrono & l'oral
           </button>
         </div>
       )}
@@ -332,7 +352,7 @@ export default function OralExamView({ etude, onComplete }: OralExamViewProps) {
             <div className="flex items-center gap-2">
               <button onClick={prevStep} className="px-3 py-2 rounded-lg text-xs bg-slate-800 text-slate-300 hover:bg-slate-700">Retour</button>
               <button onClick={nextStep} className="copper-action px-4 py-2 rounded-lg text-sm font-medium text-white flex items-center gap-1.5 hover:scale-105 transition-all">
-                Lancer l’explication <ChevronRight size={16} />
+                Lancer l'explication <ChevronRight size={16} />
               </button>
             </div>
           </div>
@@ -512,7 +532,7 @@ export default function OralExamView({ etude, onComplete }: OralExamViewProps) {
             </h3>
             <ul className="list-disc list-inside space-y-2 text-xs sm:text-sm text-slate-300 leading-relaxed">
               <li>Résumez brièvement comment votre explication a répondu à la problématique.</li>
-              <li>Rappelez l’intérêt principal du texte (l’enjeu poétique, dramatique ou argumentatif).</li>
+              <li>Rappelez l'intérêt principal du texte (l'enjeu poétique, dramatique ou argumentatif).</li>
               <li>Proposez une <strong>ouverture</strong> (autre texte du parcours, résonance artistique ou culturelle).</li>
             </ul>
           </div>
@@ -534,7 +554,7 @@ export default function OralExamView({ etude, onComplete }: OralExamViewProps) {
                 onClick={nextStep}
                 className="copper-action px-5 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center gap-1.5 hover:scale-105 transition-all"
               >
-                Terminer l’oral <CheckCircle2 size={16} />
+                Terminer l'oral <CheckCircle2 size={16} />
               </button>
             </div>
           </div>
@@ -592,7 +612,7 @@ export default function OralExamView({ etude, onComplete }: OralExamViewProps) {
             {activeGrammarTopic.examples.length > 0 && (
               <div className="space-y-4">
                 <div className="p-4 rounded-xl bg-slate-950/80 border border-white/10 space-y-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-amber-400">Consigne de l’examinateur :</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-amber-400">Consigne de l'examinateur :</span>
                   <p className="text-base text-white font-serif-literary font-medium">
                     « {activeGrammarTopic.examples[0].question} »
                   </p>
@@ -630,7 +650,7 @@ export default function OralExamView({ etude, onComplete }: OralExamViewProps) {
 
                   {showGrammarAnswer && (
                     <div className="p-4 rounded-xl bg-indigo-950/60 border border-indigo-500/30 space-y-2 text-xs text-slate-200 leading-relaxed animate-in fade-in duration-300">
-                      <div className="font-bold text-amber-300">Modèle de réponse attendu à l’oral :</div>
+                      <div className="font-bold text-amber-300">Modèle de réponse attendu à l'oral :</div>
                       <p>{activeGrammarTopic.examples[0].answer}</p>
                       <div className="text-amber-400 font-medium pt-1 border-t border-white/10">
                         {activeGrammarTopic.examples[0].bareme}
@@ -651,7 +671,7 @@ export default function OralExamView({ etude, onComplete }: OralExamViewProps) {
           </div>
           <div>
             <h2 className="text-2xl font-serif-literary font-bold text-white mb-1">
-              Simulation d’oral terminée !
+              Simulation d'oral terminée !
             </h2>
             <p className="text-xs text-slate-400">
               Temps écoulé : {formatTime(12 * 60 - secondsLeft)} sur 12:00
@@ -692,6 +712,123 @@ export default function OralExamView({ etude, onComplete }: OralExamViewProps) {
           </div>
         </div>
       )}
+
+      {/* Recordings Panel */}
+      <div className="wood-panel paper-sheet rounded-xl p-4 border border-amber-500/20">
+        <div className="flex items-center gap-3 mb-4">
+          <Mic size={18} className="text-amber-400" />
+          <h3 className="font-semibold text-white text-sm">Enregistrements vocaux</h3>
+          <span className="ml-auto text-xs text-slate-500">
+            {recordings.length > 0 ? `${recordings.length} enregistrement${recordings.length > 1 ? 's' : ''}` : 'Aucun enregistrement'}
+          </span>
+        </div>
+
+        {/* Recording controls */}
+        <div className="flex items-center gap-3 mb-4">
+          {!isRecording ? (
+            <button
+              onClick={startRecording}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 text-xs font-medium transition-all"
+            >
+              <Mic size={15} />
+              Enregistrer
+            </button>
+          ) : (
+            <button
+              onClick={stopRecording}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 text-white hover:bg-red-700 text-xs font-medium transition-all animate-pulse"
+            >
+              <Square size={13} />
+              Arrêter ({formatDuration(recordingDuration)})
+            </button>
+          )}
+
+          {playbackRecordingId && (
+            <button
+              onClick={stopPlayback}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-medium"
+            >
+              Arrêter la lecture
+            </button>
+          )}
+        </div>
+
+        {/* Recordings list */}
+        {recordings.length > 0 ? (
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {recordings.map(rec => (
+              <div key={rec.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-slate-800/50 border border-white/5 hover:bg-slate-800/70 transition-all">
+                <button
+                  onClick={() => playbackRecordingId === rec.id ? stopPlayback() : playRecording(rec)}
+                  className={`p-2 rounded-lg transition-all shrink-0 ${
+                    playbackRecordingId === rec.id
+                      ? 'bg-amber-500/20 text-amber-400'
+                      : 'bg-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-700'
+                  }`}
+                  title={playbackRecordingId === rec.id ? 'Arrêter' : 'Lire'}
+                >
+                  {playbackRecordingId === rec.id ? <Pause size={14} /> : <Play size={14} />}
+                </button>
+
+                <div className="flex-1 min-w-0">
+                  {editingRecordingId === rec.id ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={editingName}
+                        onChange={e => setEditingName(e.target.value)}
+                        className="paper-input text-xs px-2 py-1 flex-1"
+                        autoFocus
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            renameRecording(rec.id, editingName);
+                            setEditingRecordingId(null);
+                          } else if (e.key === 'Escape') {
+                            setEditingRecordingId(null);
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={() => { renameRecording(rec.id, editingName); setEditingRecordingId(null); }}
+                        className="text-emerald-400 p-1"
+                        aria-label="Valider"
+                      >
+                        <Check size={13} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-white truncate">{rec.name}</div>
+                  )}
+                  <div className="text-xs text-slate-500">{formatDuration(rec.duration)} · {new Date(rec.timestamp).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => { setEditingRecordingId(rec.id); setEditingName(rec.name); }}
+                    className="text-slate-600 hover:text-slate-400 p-1.5 rounded-lg transition-colors"
+                    title="Renommer"
+                    aria-label="Renommer"
+                  >
+                    <Edit3 size={13} />
+                  </button>
+                  <button
+                    onClick={() => deleteRecording(rec.id)}
+                    className="text-slate-600 hover:text-red-400 p-1.5 rounded-lg transition-colors"
+                    title="Supprimer"
+                    aria-label="Supprimer"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-slate-500 text-center py-4">
+            Aucun enregistrement. Cliquez sur "Enregistrer" pour commencer.
+          </p>
+        )}
+      </div>
     </div>
   );
 }
