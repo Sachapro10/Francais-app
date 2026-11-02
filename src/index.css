@@ -607,3 +607,244 @@ button:not(:disabled):active {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ============================================
+   DARK THEME
+   ============================================ */
+[data-theme="dark"] {
+  --paper: #0f0f1a;
+  --paper-deep: #161625;
+  --paper-sheet: #1a1a2e;
+  --paper-line: #2a2a3e;
+  --ink: #e8e0d0;
+  --ink-soft: #a09080;
+  --ink-faint: #6a6050;
+  --walnut: #8a7060;
+  --walnut-dark: #5a4535;
+  --terracotta: #c97b5a;
+  --terracotta-dark: #a05a3a;
+  --ochre: #d4a060;
+  --olive: #7a9a6a;
+  --rose: #c07060;
+}
+
+/* Dark theme: main backgrounds */
+[data-theme="dark"] body,
+[data-theme="dark"] html,
+[data-theme="dark"] #root {
+  background: var(--paper) !important;
+  color: var(--ink) !important;
+}
+
+[data-theme="dark"] body {
+  background-image: linear-gradient(90deg, rgba(100, 80, 60, 0.04) 1px, transparent 1px) !important;
+}
+
+/* Dark theme: text colors */
+[data-theme="dark"] [class~="text-white"],
+[data-theme="dark"] [class~="text-slate-100"],
+[data-theme="dark"] [class~="text-slate-200"] { color: #e8e0d0 !important; }
+[data-theme="dark"] [class~="text-slate-300"] { color: #c8b8a0 !important; }
+[data-theme="dark"] [class~="text-slate-400"] { color: #a09080 !important; }
+[data-theme="dark"] [class~="text-slate-500"] { color: #706050 !important; }
+[data-theme="dark"] [class~="text-slate-600"] { color: #504030 !important; }
+
+/* Dark theme: surfaces */
+[data-theme="dark"] .wood-panel,
+[data-theme="dark"] .rustic-modal,
+[data-theme="dark"] .paper-sheet {
+  background: var(--paper-sheet) !important;
+  border-color: var(--paper-line) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] .wood-panel,
+[data-theme="dark"] .paper-sheet {
+  animation: none !important;
+}
+
+[data-theme="dark"] .wood-rail {
+  background: rgba(20, 20, 35, 0.96) !important;
+  border-color: var(--paper-line) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="dark"] .wood-icon {
+  background: var(--walnut) !important;
+  color: var(--paper) !important;
+}
+
+/* Dark theme: input */
+[data-theme="dark"] .paper-input {
+  background: #1e1e32 !important;
+  border-color: var(--paper-line) !important;
+  color: var(--ink) !important;
+  box-shadow: inset 0 1px rgba(0, 0, 0, 0.2) !important;
+}
+[data-theme="dark"] .paper-input:focus {
+  border-color: var(--terracotta) !important;
+  box-shadow: 0 0 0 3px rgba(169, 95, 67, 0.25) !important;
+}
+
+/* Dark theme: progress bar */
+[data-theme="dark"] .wood-progress-track {
+  background: #2a2a3e !important;
+}
+[data-theme="dark"] .wood-progress-fill {
+  background: var(--terracotta) !important;
+}
+
+/* Dark theme: tab highlight */
+[data-theme="dark"] .wood-tab[class~="bg-indigo-600"],
+[data-theme="dark"] .wood-tab[class~="bg-indigo-500"],
+[data-theme="dark"] [class~="bg-indigo-600"],
+[data-theme="dark"] [class~="bg-indigo-500"] {
+  background-color: var(--terracotta) !important;
+}
+
+/* Dark theme: modal overlay */
+[data-theme="dark"] .rustic-modal + div,
+[data-theme="dark"] .fixed.inset-0.backdrop-blur-sm {
+  background-color: rgba(0, 0, 0, 0.65) !important;
+}
+
+/* Dark theme: flashcard */
+[data-theme="dark"] .flashcard-procede {
+  color: var(--terracotta) !important;
+  -webkit-text-fill-color: var(--terracotta) !important;
+}
+
+[data-theme="dark"] .flashcard-stage:focus-visible {
+  box-shadow: 0 0 0 3px rgba(169, 95, 67, 0.35) !important;
+}
+
+/* Dark theme: scrollbar */
+[data-theme="dark"] .study-scroll-panel {
+  scrollbar-color: #3a3a5a transparent;
+}
+
+/* Dark theme: annotation mode banner */
+[data-theme="dark"] .text-indigo-300 {
+  color: #a8b4e0 !important;
+}
+
+/* Dark theme: annotation highlights */
+[data-theme="dark"] .bg-yellow-100\/60 { background-color: rgba(234, 179, 8, 0.25) !important; }
+[data-theme="dark"] .bg-emerald-100\/60 { background-color: rgba(52, 211, 153, 0.2) !important; }
+[data-theme="dark"] .bg-blue-100\/60 { background-color: rgba(96, 165, 250, 0.2) !important; }
+[data-theme="dark"] .bg-pink-100\/60 { background-color: rgba(244, 114, 182, 0.2) !important; }
+[data-theme="dark"] .text-ink { color: var(--ink) !important; }
+
+/* Dark theme: paper sheet line pattern */
+[data-theme="dark"] .paper-sheet {
+  background:
+    linear-gradient(rgba(110, 73, 45, 0.08) 1px, transparent 1px),
+    var(--paper-sheet) !important;
+  color: var(--ink) !important;
+}
+
+/* ============================================
+   MOBILE BOTTOM NAV
+   ============================================ */
+.mobile-bottom-nav {
+  display: none !important;
+}
+
+@media (max-width: 767px) {
+  .mobile-bottom-nav {
+    display: flex !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background: var(--paper-sheet);
+    border-top: 1px solid var(--paper-line);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+    padding: 0.5rem 0.25rem;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+    gap: 0.125rem;
+    justify-content: space-around;
+    align-items: flex-end;
+  }
+
+  .mobile-bottom-nav .nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.4rem 0.5rem;
+    border-radius: 0.75rem;
+    flex: 1;
+    max-width: 4rem;
+    color: var(--ink-faint);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 180ms ease;
+    min-height: 3rem;
+  }
+
+  .mobile-bottom-nav .nav-item.active {
+    color: var(--terracotta);
+    background: rgba(169, 95, 67, 0.08);
+  }
+
+  .mobile-bottom-nav .nav-item:hover {
+    transform: none;
+  }
+
+  .mobile-bottom-nav .nav-item span {
+    font-size: 0.6rem;
+    font-weight: 500;
+    line-height: 1;
+  }
+
+  .mobile-bottom-nav .nav-item svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  /* Add bottom padding to main content so it doesn't get hidden behind the nav */
+  .app-main {
+    padding-bottom: 5rem !important;
+  }
+
+  /* On study view with bottom nav */
+  .study-scroll-panel {
+    padding-bottom: 1rem;
+  }
+}
+
+/* Theme toggle button in header */
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.6rem;
+  background: transparent;
+  border: 1px solid var(--paper-line);
+  color: var(--ink-faint);
+  cursor: pointer;
+  transition: all 180ms ease;
+  flex-shrink: 0;
+}
+
+.theme-toggle:hover {
+  color: var(--ink);
+  background: rgba(100, 80, 60, 0.06);
+  transform: rotate(15deg);
+}
+
+[data-theme="dark"] .theme-toggle {
+  color: #a09080;
+  border-color: #2a2a3e;
+}
+
+[data-theme="dark"] .theme-toggle:hover {
+  color: #e8e0d0;
+  background: rgba(160, 144, 128, 0.08);
+}

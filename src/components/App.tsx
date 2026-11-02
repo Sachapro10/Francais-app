@@ -3,7 +3,7 @@ import confetti from 'canvas-confetti';
 import {
   BookOpen, Upload, Layers, Target, Trophy, ChevronRight,
   ChevronLeft, CheckCircle2, XCircle, HelpCircle, Eye, EyeOff,
-  MousePointerClick, Sparkles, RotateCcw, List, Edit3, BarChart3, Plus, Check, CloudOff, Library, Trash2, Clock, Search, Download, FolderOpen, Mic, BookMarked
+  MousePointerClick, Sparkles, RotateCcw, List, Edit3, BarChart3, Plus, Check, CloudOff, Library, Trash2, Clock, Search, Download, FolderOpen, Mic, BookMarked, Sun, Moon
 } from 'lucide-react';
 import { EtudeLineaire, CitationItem, ViewMode, Movement } from '../types/etude';
 import { parseDocxFile } from '../utils/docxParser';
@@ -38,6 +38,21 @@ interface CloudAnalysis {
 }
 
 const STORAGE_KEY = 'etude-analyses-v1';
+const THEME_KEY = 'etude-theme-v1';
+
+function applyTheme(theme: 'light' | 'dark') {
+  document.documentElement.setAttribute('data-theme', theme);
+}
+
+function getInitialTheme(): 'light' | 'dark' {
+  try {
+    const stored = localStorage.getItem(THEME_KEY);
+    if (stored === 'dark' || stored === 'light') return stored;
+    return 'light';
+  } catch {
+    return 'light';
+  }
+}
 const SUPABASE_URL = ((import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_SUPABASE_URL ?? 'https://bbgvmialvmvxlxdloueo.supabase.co').replace(/\/$/, '');
 const SUPABASE_ANON_KEY = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_SUPABASE_ANON_KEY ?? '';
 const SHARED_ANALYSES_ENDPOINT = `${SUPABASE_URL}/rest/v1/shared_analyses`;
@@ -74,7 +89,13 @@ export default function App({}: {}) {
   const [cloudMessage, setCloudMessage] = useState('');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('saved');
   const [analysesList, setAnalysesList] = useState<SavedAnalysis[]>(() => loadAnalyses());
+  const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Apply theme on mount and change
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
 
   // Auto-save current analysis to localStorage on every etude change
   useEffect(() => {
@@ -238,6 +259,14 @@ export default function App({}: {}) {
     setView('study');
   }, []);
 
+  const toggleTheme = useCallback(() => {
+    setTheme(prev => {
+      const next = prev === 'light' ? 'dark' : 'light';
+      try { localStorage.setItem(THEME_KEY, next); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+
   const currentAnalysis = analysesList.find(a => a.id === currentId);
   const analysesTitle = currentAnalysis?.title ?? etude.title;
   const analysesAuthor = currentAnalysis?.author ?? etude.author;
@@ -359,7 +388,7 @@ export default function App({}: {}) {
               </button>
 
               {/* Save indicator */}
-              <div className="hidden sm:flex items-center gap-2 text-xs">
+              <div className="hidden lg:flex items-center gap-2 text-xs">
                 {saveStatus === 'saving' && (
                   <span className="text-slate-600">sauvegarde…</span>
                 )}
@@ -377,7 +406,17 @@ export default function App({}: {}) {
                 )}
               </div>
 
-              <nav className="wood-nav flex items-center gap-1 rounded-xl p-1">
+              {/* Theme toggle - desktop only, mobile version is at bottom */}
+              <button
+                onClick={toggleTheme}
+                className="theme-toggle hidden sm:flex"
+                title={theme === 'dark' ? 'Mode clair' : 'Mode sombre'}
+                aria-label={theme === 'dark' ? 'Passer au mode clair' : 'Passer au mode sombre'}
+              >
+                {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              </button>
+
+              <nav className="wood-nav hidden lg:flex items-center gap-1 rounded-xl p-1">
                 {navItems.map(item => (
                   <button
                     key={item.mode}
@@ -482,6 +521,31 @@ export default function App({}: {}) {
           </div>
         )}
       </main>
+
+      {/* Mobile bottom navigation */}
+      <nav className="mobile-bottom-nav">
+        {navItems.slice(0, 7).map(item => (
+          <button
+            key={item.mode}
+            onClick={() => setView(item.mode)}
+            className={`nav-item ${view === item.mode ? 'active' : ''}`}
+            aria-label={item.label}
+          >
+            {item.icon}
+            <span>{item.label}</span>
+          </button>
+        ))}
+        <button
+          onClick={toggleTheme}
+          className="nav-item"
+          title={theme === 'dark' ? 'Mode clair' : 'Mode sombre'}
+          aria-label={theme === 'dark' ? 'Passer au mode clair' : 'Passer au mode sombre'}
+        >
+          {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+          <span>{theme === 'dark' ? 'Clair' : 'Sombre'}</span>
+        </button>
+      </nav>
+
     </div>
   );
 }
