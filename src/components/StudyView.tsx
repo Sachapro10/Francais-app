@@ -76,9 +76,13 @@ export default function StudyView({ etude, analysisId = 'default' }: StudyViewPr
     const lineText = etude.textLines[lineIndex];
     if (!lineText) return;
 
-    // Calculate character offsets relative to the line
+    // Find the text content element (the span that holds the actual poem text, not the line number)
+    const textContentElement = lineElement.querySelector('[data-line-text]') as HTMLElement | null;
+    if (!textContentElement) return;
+
+    // Calculate character offsets relative to the text content only
     const preSelectionRange = document.createRange();
-    preSelectionRange.selectNodeContents(lineElement);
+    preSelectionRange.selectNodeContents(textContentElement);
     preSelectionRange.setEnd(range.startContainer, range.startOffset);
     const start = preSelectionRange.toString().length;
     const end = start + text.length;
@@ -203,12 +207,31 @@ export default function StudyView({ etude, analysisId = 'default' }: StudyViewPr
   const selectCitation = useCallback((item: CitationItem) => {
     const highlights: Highlight[] = [];
 
+    // Add manual highlight positions from excerpts (set via editor's manual highlight)
+    for (const excerpt of item.excerpts ?? []) {
+      if (excerpt.lineIndex !== undefined && excerpt.start !== undefined && excerpt.end !== undefined) {
+        const line = etude.textLines[excerpt.lineIndex];
+        highlights.push({
+          lineIndex: excerpt.lineIndex,
+          start: excerpt.start,
+          end: excerpt.end,
+          text: line ? line.slice(excerpt.start, excerpt.end) : excerpt.text,
+          color: 'active',
+          citationId: item.id,
+        });
+      }
+    }
+
     // Find every occurrence of every excerpt in the current poem text. Derive
     // excerpts from the edited display value so old parsed `quotes` cannot
     // leave highlights stale.
     for (const quote of getCitationQuotes(item)) {
       const ranges = findCitationRangesInPoem(etude.textLines, quote, item.verses, item.procede);
       for (const r of ranges) {
+        // Skip if we already have a manual highlight at this position
+        if (highlights.some(h => h.lineIndex === r.lineIndex && h.start === r.start && h.end === r.end)) {
+          continue;
+        }
         const line = etude.textLines[r.lineIndex];
         highlights.push({
           lineIndex: r.lineIndex,
@@ -319,7 +342,7 @@ export default function StudyView({ etude, analysisId = 'default' }: StudyViewPr
                   }`}>
                     {lineNum}
                   </span>
-                  <span className="flex-1">
+                  <span className="flex-1" data-line-text>
                     {words.map((w, i) => {
                       const isAnnotation = !!w.annotation;
                       const annColor = w.annotation?.color || 'yellow';

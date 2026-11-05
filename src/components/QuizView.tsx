@@ -55,6 +55,11 @@ function normalize(text: string): string {
     .trim();
 }
 
+/** Normalize a quote text — strips verse references before normalization so they don't break selection matching. */
+function normalizeQuote(text: string): string {
+  return normalize(text.replace(/\s*\(\s*(?:v|vers|verset)\s*\.?\s*\d+(?:\s*[-–—]\s*\d+)?\s*\)/gi, ''));
+}
+
 function singularize(text: string): string {
   return normalize(text)
     .split(' ')
@@ -282,7 +287,7 @@ export default function QuizView({ etude, analysisId, onComplete }: QuizViewProp
     const cleaned = fragment.trim();
     if (!cleaned || state.mode !== 'locate' || state.userAnswered || state.selectionValidated) return;
     setState(previous => {
-      if (previous.selectedFragments.some(existing => normalize(existing) === normalize(cleaned))) return previous;
+      if (previous.selectedFragments.some(existing => normalizeQuote(existing) === normalizeQuote(cleaned))) return previous;
       const selectedFragments = [...previous.selectedFragments, cleaned];
       return { ...previous, selectedFragments, selectedText: selectedFragments.join(' … '), selectionError: '' };
     });
@@ -292,9 +297,9 @@ export default function QuizView({ etude, analysisId, onComplete }: QuizViewProp
   const validateLocateAnswer = useCallback((selectedFragments: string[], procede: string) => {
     if (selectedFragments.length === 0) return null;
     return allCitations.find(citation => {
-      const quotes = getCitationQuotes(citation).map(normalize).filter(Boolean);
+      const quotes = getCitationQuotes(citation).map(normalizeQuote).filter(Boolean);
       const fragmentsMatch = selectedFragments.every(fragment => {
-        const selected = normalize(fragment);
+        const selected = normalizeQuote(fragment);
         return quotes.some(quote => selected === quote);
       });
       const isProcedeMatch = procedeMatches(procede, citation.procede);
@@ -305,8 +310,8 @@ export default function QuizView({ etude, analysisId, onComplete }: QuizViewProp
   const validateSelectedFragments = useCallback(() => {
     if (state.mode !== 'locate' || state.userAnswered || state.selectionValidated || state.selectedFragments.length === 0) return;
     const matchingCitation = allCitations.find(citation => {
-      const quotes = getCitationQuotes(citation).map(normalize).filter(Boolean);
-      return state.selectedFragments.every(fragment => quotes.includes(normalize(fragment)));
+      const quotes = getCitationQuotes(citation).map(normalizeQuote).filter(Boolean);
+      return state.selectedFragments.every(fragment => quotes.includes(normalizeQuote(fragment)));
     });
     if (!matchingCitation) {
       setState(previous => ({ ...previous, selectionError: 'Ces extraits ne correspondent pas tous à la même citation enregistrée.' }));
@@ -326,7 +331,7 @@ export default function QuizView({ etude, analysisId, onComplete }: QuizViewProp
     const matchedCitation = validateLocateAnswer(state.selectedFragments, procede);
     const isCorrect = matchedCitation !== null;
     const citationToRecord = matchedCitation || allCitations.find(c =>
-      state.selectedFragments.every(f => getCitationQuotes(c).map(normalize).includes(normalize(f)))
+      state.selectedFragments.every(f => getCitationQuotes(c).map(normalizeQuote).includes(normalizeQuote(f)))
     );
 
     if (citationToRecord) {

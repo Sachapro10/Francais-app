@@ -1,337 +1,410 @@
-import { useState, useCallback, useMemo } from 'react';
-import { vocabularyList, categoryLabels, VocabularyEntry } from '../data/vocabulary';
-import {
-  BookOpen, Eye, EyeOff, ChevronLeft, ChevronRight,
-  CheckCircle2, Shuffle, Flame, Filter, Layers
-} from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { vocabularyTerms, vocabularyCategories, VocabularyTerm } from '../data/vocabulary';
 
-interface VocabularyViewProps {}
+type CategoryFilter = 'all' | VocabularyTerm['category'];
 
-interface StudyStreak {
-  current: number;
-  activeDays: number;
+interface FlashcardProps {
+  front: React.ReactNode;
+  back: React.ReactNode;
+  isFlipped: boolean;
+  onFlip: () => void;
 }
 
-const STREAK_STORAGE_KEY = 'vocabulary-study-streak-v1';
-
-function getDateKey(date = new Date()): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+function Flashcard({ front, back, isFlipped, onFlip }: FlashcardProps) {
+  return (
+    <div
+      onClick={onFlip}
+      className="flashcard-wrapper"
+      style={{ perspective: '1000px', cursor: 'pointer' }}
+    >
+      <div
+        className="flashcard-inner"
+        style={{
+          position: 'relative',
+          width: '100%',
+          minHeight: '200px',
+          transition: 'transform 0.6s',
+          transformStyle: 'preserve-3d',
+          transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+        }}
+      >
+        <div
+          className="flashcard-front"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backfaceVisibility: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {front}
+        </div>
+        <div
+          className="flashcard-back"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backfaceVisibility: 'hidden',
+            transform: 'rotateY(180deg)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {back}
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function offsetDateKey(days: number): string {
-  const date = new Date();
-  date.setHours(12, 0, 0, 0);
-  date.setDate(date.getDate() + days);
-  return getDateKey(date);
+interface VocabularyProgress {
+  learned: string[];
+  lastReviewed: Record<string, number>;
 }
 
-function getStreakSummary(days: string[]): StudyStreak {
-  const uniqueDays = new Set(days);
-  const startOffset = uniqueDays.has(getDateKey()) ? 0 : -1;
-  let current = 0;
-  while (uniqueDays.has(offsetDateKey(startOffset - current))) {
-    current += 1;
-  }
-  const activeDays = Array.from({ length: 7 }, (_, index) =>
-    uniqueDays.has(offsetDateKey(-index))
-  ).filter(Boolean).length;
-  return { current, activeDays };
-}
-
-function readStreakDays(): string[] {
+function loadProgress(): VocabularyProgress {
   try {
-    const raw = localStorage.getItem(STREAK_STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed.filter((day): day is string => typeof day === 'string') : [];
+    const raw = localStorage.getItem('vocabulary-progress');
+    if (!raw) return { learned: [], lastReviewed: {} };
+    const parsed = JSON.parse(raw);
+    return {
+      learned: Array.isArray(parsed.learned) ? parsed.learned : [],
+      lastReviewed: parsed.lastReviewed ?? {},
+    };
   } catch {
-    return [];
+    return { learned: [], lastReviewed: {} };
   }
 }
 
-const CATEGORY_COLORS: Record<VocabularyEntry['category'], string> = {
-  'figures-style': 'from-violet-500 to-purple-600',
-  'classes-mots': 'from-teal-500 to-emerald-600',
-  'termes-analyse': 'from-amber-500 to-orange-600',
-};
-
-function getCategoryGradient(cat: VocabularyEntry['category']): string {
-  return CATEGORY_COLORS[cat] || 'from-indigo-500 to-purple-600';
+function saveProgress(progress: VocabularyProgress): void {
+  try {
+    localStorage.setItem('vocabulary-progress', JSON.stringify(progress));
+  } catch {
+    // Continue even when storage fails
+  }
 }
 
-export default function VocabularyView({}: VocabularyViewProps) {
-  const [cards, setCards] = useState(() => {
-    const shuffled = [...vocabularyList];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled;
-  });
-
-  const [currentIdx, setCurrentIdx] = useState(0);
+export default function VocabularyView() {
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [streakDays, setStreakDays] = useState<string[]>(readStreakDays);
-  const [selectedCategory, setSelectedCategory] = useState<VocabularyEntry['category'] | 'all'>('all');
-  const [knownCards, setKnownCards] = useState<Set<string>>(() => {
-    try {
-      const raw = localStorage.getItem('vocabulary-known-v1');
-      return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
-    } catch {
-      return new Set();
+  const [progress, setProgress] = useState<VocabularyProgress>(loadProgress);
+  const [studyMode, setStudyMode] = useState<'all' | 'unlearned'>('all');
+
+  const filteredTerms = useMemo(() => {
+    let terms = vocabularyTerms;
+    if (categoryFilter !== 'all') {
+      terms = terms.filter(t => t.category === categoryFilter);
     }
-  });
-
-  const card = cards[currentIdx];
-  const streak = useMemo(() => getStreakSummary(streakDays), [streakDays]);
-
-  const filteredCards = useMemo(() => {
-    if (selectedCategory === 'all') return cards;
-    return cards.filter(c => c.category === selectedCategory);
-  }, [cards, selectedCategory]);
-
-  const currentFilteredCard = filteredCards[currentIdx] || filteredCards[0];
-  const effectiveCard = selectedCategory === 'all' ? card : currentFilteredCard;
-
-  const recordStudyDay = useCallback(() => {
-    const today = getDateKey();
-    setStreakDays(prev => {
-      if (prev.includes(today)) return prev;
-      const updated = [...prev, today].slice(-366);
-      try {
-        localStorage.setItem(STREAK_STORAGE_KEY, JSON.stringify(updated));
-      } catch {
-        // Continue even when browser storage is unavailable
-      }
-      return updated;
-    });
-  }, []);
-
-  const flip = useCallback(() => {
-    setIsFlipped(flipped => !flipped);
-  }, []);
-
-  const next = useCallback(() => {
-    const maxIdx = filteredCards.length - 1;
-    if (selectedCategory === 'all') {
-      if (currentIdx < cards.length - 1) {
-        setCurrentIdx(i => i + 1);
-        setIsFlipped(false);
-      }
-    } else {
-      if (currentIdx < maxIdx) {
-        setCurrentIdx(i => i + 1);
-        setIsFlipped(false);
-      }
+    if (studyMode === 'unlearned') {
+      terms = terms.filter(t => !progress.learned.includes(t.id));
     }
-  }, [currentIdx, cards.length, filteredCards.length, selectedCategory]);
+    return terms;
+  }, [categoryFilter, studyMode, progress.learned]);
 
-  const prev = useCallback(() => {
-    if (currentIdx > 0) {
-      setCurrentIdx(i => i - 1);
-      setIsFlipped(false);
-    }
-  }, [currentIdx]);
+  const currentTerm = filteredTerms[currentIndex] || null;
 
-  const shuffle = useCallback(() => {
-    const shuffled = [...cards];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    setCards(shuffled);
-    setCurrentIdx(0);
+  const handleNext = () => {
     setIsFlipped(false);
-  }, [cards]);
+    setCurrentIndex(i => (i + 1) % filteredTerms.length);
+  };
 
-  const markKnown = useCallback((known: boolean) => {
-    if (effectiveCard) {
-      setKnownCards(prev => {
-        const nextSet = new Set(prev);
-        if (known) nextSet.add(effectiveCard.id);
-        else nextSet.delete(effectiveCard.id);
-        try {
-          localStorage.setItem('vocabulary-known-v1', JSON.stringify(Array.from(nextSet)));
-        } catch {
-          // Continue even when storage fails
-        }
-        return nextSet;
-      });
-    }
-    recordStudyDay();
-    next();
-  }, [effectiveCard, next, recordStudyDay]);
+  const handlePrev = () => {
+    setIsFlipped(false);
+    setCurrentIndex(i => (i - 1 + filteredTerms.length) % filteredTerms.length);
+  };
 
-  const gradient = effectiveCard ? getCategoryGradient(effectiveCard.category) : 'from-indigo-500 to-purple-600';
-  const progressPct = filteredCards.length > 0 ? ((currentIdx + 1) / filteredCards.length) * 100 : 0;
+  const handleMarkLearned = () => {
+    if (!currentTerm) return;
+    const newLearned = progress.learned.includes(currentTerm.id)
+      ? progress.learned.filter(id => id !== currentTerm.id)
+      : [...progress.learned, currentTerm.id];
+    const newProgress: VocabularyProgress = {
+      ...progress,
+      learned: newLearned,
+      lastReviewed: { ...progress.lastReviewed, [currentTerm.id]: Date.now() },
+    };
+    setProgress(newProgress);
+    saveProgress(newProgress);
+  };
 
-  const frontCard = (
-    <div className="p-8 h-full flex flex-col">
-      <div className="text-center space-y-4 flex-1 flex flex-col items-center justify-center">
-        <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Terme littéraire</div>
-        <div className="text-4xl font-serif-literary text-ink">{effectiveCard?.word}</div>
-        <div className="text-sm text-slate-500 italic">{effectiveCard?.partOfSpeech}</div>
-        <div className="text-xs text-slate-400 mt-4 bg-slate-100 px-3 py-1 rounded-full">
-          {effectiveCard && categoryLabels[effectiveCard.category]}
-        </div>
-      </div>
-      <div className="text-center text-slate-500 text-sm flex items-center justify-center gap-2 mt-4">
-        <Eye size={14} /> Cliquez pour voir la définition
-      </div>
-    </div>
-  );
+  const handleShuffle = () => {
+    setIsFlipped(false);
+    setCurrentIndex(Math.floor(Math.random() * filteredTerms.length));
+  };
 
-  const backCard = (
-    <div className="p-8 h-full flex flex-col">
-      <div className="text-center space-y-4 flex-1 flex flex-col items-center justify-center">
-        <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Définition</div>
-        <div className="text-lg text-ink leading-relaxed max-w-sm text-center">
-          {effectiveCard?.definition}
-        </div>
-        {effectiveCard?.example && (
-          <div className="text-sm text-slate-500 italic border-l-2 border-slate-300 pl-3 mt-2">
-            "{effectiveCard.example}"
-          </div>
-        )}
-      </div>
-      <div className="text-center text-slate-500 text-sm flex items-center justify-center gap-2 mt-4">
-        <EyeOff size={14} /> Cliquez pour voir le terme
-      </div>
-    </div>
-  );
+  const categoryName = (cat: VocabularyTerm['category']) =>
+    vocabularyCategories.find(c => c.id === cat)?.name ?? cat;
+
+  const totalLearned = progress.learned.length;
+  const totalTerms = vocabularyTerms.length;
 
   return (
-    <div className="max-w-lg mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="wood-icon w-10 h-10 rounded-lg flex items-center justify-center">
-            <BookOpen size={20} className="text-white" />
-          </div>
-          <div>
-            <div className="font-semibold text-ink">Vocabulaire du Bac</div>
-            <div className="text-xs text-slate-500">{filteredCards.length} cartes · {knownCards.size} maîtrisées</div>
+    <div className="vocabulary-view">
+      <header className="vocabulary-header">
+        <h2>Vocabulaire littéraire</h2>
+        <div className="progress-stats">
+          <span className="progress-text">
+            {totalLearned} / {totalTerms} termes appris
+          </span>
+          <div className="progress-bar">
+            <div
+              className="progress-fill"
+              style={{ width: `${(totalLearned / totalTerms) * 100}%` }}
+            />
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="hidden sm:flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-xl" title="Jours d'étude consécutifs">
-            <Flame size={13} />
-            {streak.current} jour{streak.current > 1 ? 's' : ''} · {streak.activeDays}/7
-          </div>
-          <button
-            onClick={shuffle}
-            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-800 transition-all"
-            title="Mélanger"
+      </header>
+
+      <div className="vocabulary-filters">
+        <div className="filter-group">
+          <label>Catégorie :</label>
+          <select
+            value={categoryFilter}
+            onChange={e => { setCategoryFilter(e.target.value as CategoryFilter); setCurrentIndex(0); setIsFlipped(false); }}
           >
-            <Shuffle size={16} />
-          </button>
-          <div className="flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-xl">
-            <CheckCircle2 size={12} />
-            {knownCards.size}
-          </div>
+            <option value="all">Toutes</option>
+            {vocabularyCategories.map(cat => (
+              <option key={cat.id} value={cat.id}>{cat.name} ({cat.count})</option>
+            ))}
+          </select>
         </div>
-      </div>
 
-      {/* Category filter */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <Filter size={14} className="text-slate-400 shrink-0" />
-        <button
-          onClick={() => { setSelectedCategory('all'); setCurrentIdx(0); setIsFlipped(false); }}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-            selectedCategory === 'all'
-              ? 'copper-action text-white'
-              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-          }`}
-        >
-          Toutes ({vocabularyList.length})
-        </button>
-        {(Object.keys(categoryLabels) as VocabularyEntry['category'][]).map(cat => (
-          <button
-            key={cat}
-            onClick={() => { setSelectedCategory(cat); setCurrentIdx(0); setIsFlipped(false); }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              selectedCategory === cat
-                ? 'copper-action text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
+        <div className="filter-group">
+          <label>Mode :</label>
+          <select
+            value={studyMode}
+            onChange={e => { setStudyMode(e.target.value as 'all' | 'unlearned'); setCurrentIndex(0); setIsFlipped(false); }}
           >
-            {categoryLabels[cat]} ({vocabularyList.filter(c => c.category === cat).length})
+            <option value="all">Tous les termes</option>
+            <option value="unlearned">Non appris uniquement</option>
+          </select>
+        </div>
+      </div>
+
+      {filteredTerms.length === 0 ? (
+        <div className="empty-state">
+          <p>Tous les termes de cette catégorie ont été appris !</p>
+          <button onClick={() => setStudyMode('all')} className="btn-secondary">
+            Revoir tous les termes
           </button>
-        ))}
-      </div>
-
-      {/* Progress */}
-      <div className="flex items-center gap-3">
-        <button onClick={prev} disabled={currentIdx === 0} className="p-2 rounded-xl bg-slate-100 disabled:opacity-30 text-slate-600 hover:text-slate-800 transition-all">
-          <ChevronLeft size={16} />
-        </button>
-        <div className="wood-progress-track flex-1 h-2 rounded-full overflow-hidden">
-          <div className="wood-progress-fill h-full rounded-full transition-all duration-300" style={{ width: `${progressPct}%` }} />
         </div>
-        <span className="text-sm text-slate-500 shrink-0">{currentIdx + 1}/{filteredCards.length}</span>
-        <button onClick={next} disabled={currentIdx >= filteredCards.length - 1} className="p-2 rounded-xl bg-slate-100 disabled:opacity-30 text-slate-600 hover:text-slate-800 transition-all">
-          <ChevronRight size={16} />
-        </button>
-      </div>
-
-      {/* Flashcard */}
-      {effectiveCard && (
-        <div
-          onClick={flip}
-          className={`flashcard-stage relative min-h-[340px] cursor-pointer select-none ${isFlipped ? 'is-flipped' : ''}`}
-          role="button"
-          tabIndex={0}
-          onKeyDown={event => {
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault();
-              flip();
-            }
-          }}
-          aria-label={isFlipped ? 'Retourner la carte pour voir le terme' : 'Retourner la carte pour voir la définition'}
-        >
-          <div className="flashcard-inner">
-            <div className="flashcard-face flashcard-front wood-panel rounded-lg border border-slate-200 overflow-hidden">
-              {frontCard}
-            </div>
-            <div className="flashcard-face flashcard-back wood-panel rounded-lg border border-slate-200 overflow-hidden">
-              {backCard}
-            </div>
+      ) : (
+        <>
+          <div className="flashcard-container">
+            <Flashcard
+              front={
+                <div className="vocab-front">
+                  <span className="vocab-category">{categoryName(currentTerm!.category)}</span>
+                  <h3 className="vocab-term">{currentTerm!.term}</h3>
+                </div>
+              }
+              back={
+                <div className="vocab-back">
+                  <p className="vocab-definition">{currentTerm!.definition}</p>
+                  {currentTerm!.example && (
+                    <p className="vocab-example">Exemple : {currentTerm!.example}</p>
+                  )}
+                </div>
+              }
+              isFlipped={isFlipped}
+              onFlip={() => setIsFlipped(f => !f)}
+            />
           </div>
-        </div>
+
+          <div className="flashcard-counter">
+            {currentIndex + 1} / {filteredTerms.length}
+          </div>
+
+          <div className="flashcard-actions">
+            <button onClick={handlePrev} className="btn-nav" title="Précédent">
+              ←
+            </button>
+            <button
+              onClick={handleMarkLearned}
+              className={progress.learned.includes(currentTerm?.id ?? '') ? 'btn-learned' : 'btn-learn'}
+            >
+              {progress.learned.includes(currentTerm?.id ?? '') ? '✓ Appris' : 'Marquer appris'}
+            </button>
+            <button onClick={handleShuffle} className="btn-secondary" title="Aléatoire">
+              🎲
+            </button>
+            <button onClick={handleNext} className="btn-nav" title="Suivant">
+              →
+            </button>
+          </div>
+        </>
       )}
 
-      {/* Actions */}
-      <div className="flex items-center gap-3 justify-center">
-        <button
-          onClick={() => markKnown(false)}
-          className="flex items-center gap-2 px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg font-medium transition-all"
-        >
-          <CheckCircle2 size={16} className="text-red-500" /> À revoir
-        </button>
-        <button
-          onClick={() => markKnown(true)}
-          className="copper-action flex items-center gap-2 px-6 py-3 text-white rounded-lg font-semibold transition-all"
-        >
-          <CheckCircle2 size={16} /> Maîtrisée
-        </button>
-      </div>
-
-      {/* Progress dots */}
-      <div className="flex gap-1 flex-wrap">
-        {filteredCards.slice(0, 50).map((c, i) => (
-          <button
-            key={c.id}
-            onClick={() => { setCurrentIdx(i); setIsFlipped(false); }}
-            className={`h-2 rounded-full transition-all duration-200 flex-1 max-w-6 ${
-              i === currentIdx ? 'bg-indigo-500' :
-              knownCards.has(c.id) ? 'bg-emerald-500' : 'bg-slate-200 hover:bg-slate-300'
-            }`}
-            title={c.word}
-          />
-        ))}
-      </div>
+      <style>{`
+        .vocabulary-view {
+          max-width: 800px;
+          margin: 0 auto;
+          padding: 1.5rem;
+        }
+        .vocabulary-header {
+          text-align: center;
+          margin-bottom: 2rem;
+        }
+        .vocabulary-header h2 {
+          margin: 0 0 1rem 0;
+          font-size: 1.75rem;
+        }
+        .progress-stats {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 0.5rem;
+        }
+        .progress-text {
+          font-size: 0.9rem;
+          color: var(--text-muted, #6b7280);
+        }
+        .progress-bar {
+          width: 200px;
+          height: 8px;
+          background: var(--bg-secondary, #e5e7eb);
+          border-radius: 4px;
+          overflow: hidden;
+        }
+        .progress-fill {
+          height: 100%;
+          background: var(--accent-color, #10b981);
+          transition: width 0.3s ease;
+        }
+        .vocabulary-filters {
+          display: flex;
+          gap: 1.5rem;
+          margin-bottom: 2rem;
+          flex-wrap: wrap;
+          justify-content: center;
+        }
+        .filter-group {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+        .filter-group label {
+          font-size: 0.9rem;
+          font-weight: 500;
+        }
+        .filter-group select {
+          padding: 0.4rem 0.8rem;
+          border-radius: 6px;
+          border: 1px solid var(--border-color, #d1d5db);
+          background: var(--bg-primary, #fff);
+          font-size: 0.9rem;
+        }
+        .flashcard-container {
+          perspective: 1000px;
+          margin-bottom: 1rem;
+        }
+        .flashcard-counter {
+          text-align: center;
+          font-size: 0.85rem;
+          color: var(--text-muted, #6b7280);
+          margin-bottom: 1rem;
+        }
+        .vocab-front {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 2rem;
+        }
+        .vocab-category {
+          font-size: 0.8rem;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: var(--accent-color, #6366f1);
+          background: var(--bg-secondary, #f3f4f6);
+          padding: 0.25rem 0.75rem;
+          border-radius: 999px;
+        }
+        .vocab-term {
+          font-size: 1.75rem;
+          margin: 0;
+        }
+        .vocab-back {
+          padding: 2rem;
+        }
+        .vocab-definition {
+          font-size: 1.1rem;
+          line-height: 1.6;
+          margin: 0 0 1rem 0;
+        }
+        .vocab-example {
+          font-style: italic;
+          color: var(--text-muted, #6b7280);
+          margin: 0;
+          padding-left: 1rem;
+          border-left: 3px solid var(--accent-color, #6366f1);
+        }
+        .flashcard-actions {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          gap: 0.75rem;
+        }
+        .btn-nav {
+          padding: 0.5rem 1rem;
+          border-radius: 8px;
+          border: 1px solid var(--border-color, #d1d5db);
+          background: var(--bg-primary, #fff);
+          cursor: pointer;
+          font-size: 1.25rem;
+          transition: all 0.2s;
+        }
+        .btn-nav:hover {
+          background: var(--bg-secondary, #f3f4f6);
+        }
+        .btn-learn {
+          padding: 0.5rem 1rem;
+          border-radius: 8px;
+          border: none;
+          background: var(--accent-color, #10b981);
+          color: white;
+          cursor: pointer;
+          font-weight: 500;
+          transition: all 0.2s;
+        }
+        .btn-learn:hover {
+          opacity: 0.9;
+        }
+        .btn-learned {
+          padding: 0.5rem 1rem;
+          border-radius: 8px;
+          border: 2px solid var(--accent-color, #10b981);
+          background: transparent;
+          color: var(--accent-color, #10b981);
+          cursor: pointer;
+          font-weight: 500;
+          transition: all 0.2s;
+        }
+        .btn-secondary {
+          padding: 0.5rem 1rem;
+          border-radius: 8px;
+          border: 1px solid var(--border-color, #d1d5db);
+          background: var(--bg-primary, #fff);
+          cursor: pointer;
+          font-size: 1rem;
+          transition: all 0.2s;
+        }
+        .btn-secondary:hover {
+          background: var(--bg-secondary, #f3f4f6);
+        }
+        .empty-state {
+          text-align: center;
+          padding: 3rem;
+        }
+        .empty-state p {
+          font-size: 1.1rem;
+          margin-bottom: 1.5rem;
+        }
+      `}</style>
     </div>
   );
 }

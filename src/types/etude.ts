@@ -2,6 +2,10 @@ export interface CitationExcerpt {
   id: string;
   text: string;
   verses?: number[];
+  /** Manual highlight positions (set when auto-detection fails) */
+  lineIndex?: number;
+  start?: number;
+  end?: number;
 }
 
 export interface CitationItem {

@@ -1,4 +1,4 @@
-import { CitationItem } from '../types/etude';
+import { CitationItem } from "../types/etude";
 
 export interface CitationRange {
   lineIndex: number;
@@ -10,10 +10,12 @@ export interface CitationRange {
 export function normalizeCitationText(text: string): string {
   return text
     .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[’‘`]/g, "'")
-    .replace(/\s+/g, ' ')
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[‘’`]/g, "'")
+    .replace(/—/g, "-")
+    .replace(/–/g, "-")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -23,8 +25,8 @@ export function normalizeCitationText(text: string): string {
  */
 function cleanCitationPart(part: string): string {
   return part
-    .replace(/\s*\(\s*(?:v|vers|verset)\s*\.?\s*\d+(?:\s*[-–—]\s*\d+)?\s*\)/gi, ' ')
-    .replace(/\s+/g, ' ')
+    .replace(/\s*\(\s*(?:v|vers|verset)\s*\.?\s*\d+(?:\s*[-–—]\s*\d+)?\s*\)/gi, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -36,7 +38,7 @@ function splitCitationParts(parts: string[]): string[] {
 }
 
 export function deriveCitationQuotes(citation: string): string[] {
-  const quoted = Array.from(citation.matchAll(/[«“"]([^»”"]+)[»”"]/g))
+  const quoted = Array.from(citation.matchAll(/[«"`]([^»""]+)[»""]/g))
     .map(match => match[1])
     .filter(Boolean);
 
@@ -47,7 +49,7 @@ export function deriveCitationQuotes(citation: string): string[] {
 }
 
 /** Prefer excerpts from the current display text, with legacy quote data as fallback. */
-export function getCitationQuotes(citation: Pick<CitationItem, 'citation' | 'quotes' | 'excerpts'>): string[] {
+export function getCitationQuotes(citation: Pick<CitationItem, "citation" | "quotes" | "excerpts">): string[] {
   const excerpts = citation.excerpts?.map(excerpt => excerpt.text.trim()).filter(Boolean) ?? [];
   if (excerpts.length > 0) return excerpts;
   const derived = deriveCitationQuotes(citation.citation);
@@ -59,7 +61,7 @@ export function makeExcerptId(): string {
 }
 
 function normalizedWithMap(source: string): { text: string; map: number[] } {
-  let text = '';
+  let text = "";
   const map: number[] = [];
   let previousWasSpace = false;
 
@@ -67,7 +69,7 @@ function normalizedWithMap(source: string): { text: string; map: number[] } {
     const character = source[index];
     if (/\s/.test(character)) {
       if (text && !previousWasSpace) {
-        text += ' ';
+        text += " ";
         map.push(index);
       }
       previousWasSpace = true;
@@ -76,9 +78,11 @@ function normalizedWithMap(source: string): { text: string; map: number[] } {
 
     const normalized = character
       .toLowerCase()
-      .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .replace(/[’‘`]/g, "'");
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[‘’`]/g, "'")
+      .replace(/—/g, "-")
+      .replace(/–/g, "-");
     for (const output of normalized) {
       text += output;
       map.push(index);
@@ -86,7 +90,7 @@ function normalizedWithMap(source: string): { text: string; map: number[] } {
     previousWasSpace = false;
   }
 
-  while (text.endsWith(' ')) {
+  while (text.endsWith(" ")) {
     text = text.slice(0, -1);
     map.pop();
   }
@@ -97,25 +101,25 @@ function normalizedWithMap(source: string): { text: string; map: number[] } {
 export function isTiretTerm(term: string): boolean {
   const norm = normalizeCitationText(term);
   return (
-    norm === 'tiret' ||
-    norm === 'tirets' ||
-    norm === 'les tirets' ||
-    norm === 'des tirets' ||
-    norm.includes('tiret') ||
-    norm === 'marque du dialogue' ||
-    norm === 'les tirets du dialogue'
+    norm === "tiret" ||
+    norm === "tirets" ||
+    norm === "les tirets" ||
+    norm === "des tirets" ||
+    norm.includes("tiret") ||
+    norm === "marque du dialogue" ||
+    norm === "les tirets du dialogue"
   );
 }
 
-/** Check if a term represents a stanza/strophe description like "le deuxième quatrain" */
+/** Check if a term represents a stanza/strophe description like "le deuxieme quatrain" */
 export function isStanzaTerm(term: string): boolean {
   const norm = normalizeCitationText(term);
   return (
-    norm.includes('quatrain') ||
-    norm.includes('tercet') ||
-    norm.includes('strophe') ||
-    norm.includes('sixain') ||
-    norm.includes('distique')
+    norm.includes("quatrain") ||
+    norm.includes("tercet") ||
+    norm.includes("strophe") ||
+    norm.includes("sixain") ||
+    norm.includes("distique")
   );
 }
 
@@ -125,11 +129,11 @@ export function isVerseDescriptionTerm(term: string): boolean {
   if (!norm) return false;
   return (
     isStanzaTerm(term) ||
-    norm.includes('vers') ||
-    norm.includes('verset') ||
-    norm.includes('dernier') ||
-    norm.includes('premier') ||
-    norm.includes('1er')
+    norm.includes("vers") ||
+    norm.includes("verset") ||
+    norm.includes("dernier") ||
+    norm.includes("premier") ||
+    norm.includes("1er")
   );
 }
 
@@ -143,12 +147,12 @@ export function getVerseDescriptionLineIndices(textLines: string[], term: string
     return getStanzaLineIndices(textLines, term);
   }
 
-  if (norm.includes('dernier')) {
+  if (norm.includes("dernier")) {
     let count = 1;
-    if (norm.includes('2') || norm.includes('deux')) count = 2;
-    else if (norm.includes('3') || norm.includes('trois')) count = 3;
-    else if (norm.includes('4') || norm.includes('quatre')) count = 4;
-    else if (norm.includes('derniers')) count = 2;
+    if (norm.includes("2") || norm.includes("deux")) count = 2;
+    else if (norm.includes("3") || norm.includes("trois")) count = 3;
+    else if (norm.includes("4") || norm.includes("quatre")) count = 4;
+    else if (norm.includes("derniers")) count = 2;
 
     const startIdx = Math.max(0, totalLines - count);
     const indices: number[] = [];
@@ -158,11 +162,11 @@ export function getVerseDescriptionLineIndices(textLines: string[], term: string
     return indices;
   }
 
-  if (norm.includes('premier') || norm.includes('1er')) {
+  if (norm.includes("premier") || norm.includes("1er")) {
     let count = 1;
-    if (norm.includes('2') || norm.includes('deux')) count = 2;
-    else if (norm.includes('3') || norm.includes('trois')) count = 3;
-    else if (norm.includes('4') || norm.includes('quatre')) count = 4;
+    if (norm.includes("2") || norm.includes("deux")) count = 2;
+    else if (norm.includes("3") || norm.includes("trois")) count = 3;
+    else if (norm.includes("4") || norm.includes("quatre")) count = 4;
 
     const endIdx = Math.min(totalLines, count);
     const indices: number[] = [];
@@ -172,13 +176,13 @@ export function getVerseDescriptionLineIndices(textLines: string[], term: string
     return indices;
   }
 
-  if (norm.includes('2eme') || norm.includes('2e') || norm.includes('deuxieme') || norm.includes('second')) {
+  if (norm.includes("2eme") || norm.includes("2e") || norm.includes("deuxieme") || norm.includes("second")) {
     if (totalLines >= 2) return [1];
   }
-  if (norm.includes('3eme') || norm.includes('3e') || norm.includes('troisieme')) {
+  if (norm.includes("3eme") || norm.includes("3e") || norm.includes("troisieme")) {
     if (totalLines >= 3) return [2];
   }
-  if (norm.includes('4eme') || norm.includes('4e') || norm.includes('quatrieme')) {
+  if (norm.includes("4eme") || norm.includes("4e") || norm.includes("quatrieme")) {
     if (totalLines >= 4) return [3];
   }
 
@@ -198,21 +202,21 @@ export function getStanzaLineIndices(textLines: string[], term: string): number[
   if (textLines.length === 0) return [];
 
   let stanzaNum = 1;
-  if (norm.includes('2') || norm.includes('deuxieme') || norm.includes('second')) stanzaNum = 2;
-  else if (norm.includes('3') || norm.includes('troisieme')) stanzaNum = 3;
-  else if (norm.includes('4') || norm.includes('quatrieme')) stanzaNum = 4;
-  else if (norm.includes('dernier')) stanzaNum = norm.includes('tercet') ? 2 : 4;
+  if (norm.includes("2") || norm.includes("deuxieme") || norm.includes("second")) stanzaNum = 2;
+  else if (norm.includes("3") || norm.includes("troisieme")) stanzaNum = 3;
+  else if (norm.includes("4") || norm.includes("quatrieme")) stanzaNum = 4;
+  else if (norm.includes("dernier")) stanzaNum = norm.includes("tercet") ? 2 : 4;
 
-  const isTercet = norm.includes('tercet');
-  const isQuatrain = norm.includes('quatrain');
+  const isTercet = norm.includes("tercet");
+  const isQuatrain = norm.includes("quatrain");
 
-  const blankLineIndices = textLines.map((l, i) => l.trim() === '' ? i : -1).filter(i => i >= 0);
+  const blankLineIndices = textLines.map((l, i) => l.trim() === "" ? i : -1).filter(i => i >= 0);
 
   if (blankLineIndices.length > 0) {
     const blocks: number[][] = [];
     let currentBlock: number[] = [];
     for (let i = 0; i < textLines.length; i++) {
-      if (textLines[i].trim() === '') {
+      if (textLines[i].trim() === "") {
         if (currentBlock.length > 0) {
           blocks.push(currentBlock);
           currentBlock = [];
@@ -256,7 +260,6 @@ export function getStanzaLineIndices(textLines: string[], term: string): number[
   return Array.from({ length: 4 }, (_, k) => start + k).filter(i => i < textLines.length);
 }
 
-/** Find an excerpt in a poem line and return offsets in the original line. */
 export function findCitationRange(line: string, quote: string, sourceOffset = 0): { start: number; end: number } | null {
   const normalizedQuote = normalizeCitationText(quote);
   if (!normalizedQuote) return null;
@@ -271,28 +274,24 @@ export function findCitationRange(line: string, quote: string, sourceOffset = 0)
 
   while (searchPos < line.length) {
     const found = normalizedLine.text.indexOf(normalizedQuote, normalizedOffset);
-    if (found < 0) return null;
+    if (found >= 0) {
+      const beforeChar = found > 0 ? normalizedLine.text[found - 1] : "";
+      const afterIndex = found + normalizedQuote.length;
+      const afterChar = afterIndex < normalizedLine.text.length ? normalizedLine.text[afterIndex] : "";
 
-    const beforeChar = found > 0 ? normalizedLine.text[found - 1] : '';
-    const afterIndex = found + normalizedQuote.length;
-    const afterChar = afterIndex < normalizedLine.text.length ? normalizedLine.text[afterIndex] : '';
+      const validStart = !startsWithWordChar || !beforeChar || !/[a-z0-9]/i.test(beforeChar);
+      const validEnd = !endsWithWordChar || !afterChar || !/[a-z0-9]/i.test(afterChar);
 
-    const validStart = !startsWithWordChar || !beforeChar || !/[a-z0-9]/i.test(beforeChar);
-    const validEnd = !endsWithWordChar || !afterChar || !/[a-z0-9]/i.test(afterChar);
+      const last = found + normalizedQuote.length - 1;
+      const start = normalizedLine.map[found];
+      const end = (normalizedLine.map[last] ?? start) + 1;
 
-    const last = found + normalizedQuote.length - 1;
-    const start = normalizedLine.map[found];
-    const end = (normalizedLine.map[last] ?? start) + 1;
-
-    if (validStart && validEnd) {
-      return { start, end };
+      if (validStart && validEnd) {
+        return { start, end };
+      }
     }
-
-    normalizedOffset = found + 1;
-    if (normalizedOffset >= normalizedLine.text.length) return null;
-    searchPos = normalizedLine.map[normalizedOffset] ?? (line.length + 1);
+    return null;
   }
-
   return null;
 }
 
@@ -382,14 +381,12 @@ export function findCitationRangesInPoem(
   };
 
   if (itemVerses && itemVerses.length > 0) {
-    // Pass 1: exact verses listed in itemVerses
     const exactLineIndices = itemVerses
       .map(v => v - 1)
       .filter(i => i >= 0 && i < textLines.length);
 
     searchLines(exactLineIndices);
 
-    // Pass 2: fallback to any verse between min and max verse range if no match on exact verses
     if (ranges.length === 0 && itemVerses.length >= 2) {
       const minV = Math.min(...itemVerses);
       const maxV = Math.max(...itemVerses);
@@ -405,7 +402,6 @@ export function findCitationRangesInPoem(
       }
     }
   } else {
-    // No itemVerses specified: search all lines
     const allIndices = Array.from({ length: textLines.length }, (_, i) => i);
     searchLines(allIndices);
   }

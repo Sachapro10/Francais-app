@@ -1,121 +1,135 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 
 export interface Recording {
   id: string;
-  blobUrl: string;
-  timestamp: number;
-  duration: number;
   name: string;
+  blob?: Blob;
+  duration: number;
+  timestamp: number;
 }
 
-const STORAGE_KEY = 'oral-recordings-v1';
-
-function loadRecordings(): Recording[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw) as Recording[];
-  } catch {
-    return [];
-  }
+function getRecordingsKey(): string {
+  return 'oral-recordings-v1';
 }
 
-function saveRecordings(recordings: Recording[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(recordings));
-  } catch {
-    // Continue even when storage fails
-  }
+function formatDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 export function useAudioRecorder() {
   const [isRecording, setIsRecording] = useState(false);
-  const [recordings, setRecordings] = useState<Recording[]>(() => loadRecordings());
-  const [currentRecordingId, setCurrentRecordingId] = useState<string | null>(null);
-  const [playbackRecordingId, setPlaybackRecordingId] = useState<string | null>(null);
   const [recordingDuration, setRecordingDuration] = useState(0);
+  const [recordings, setRecordings] = useState<Recording[]>(() => {
+    try {
+      const raw = localStorage.getItem(getRecordingsKey());
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.map((r: Recording) => ({ ...r, blob: undefined })) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [playbackRecordingId, setPlaybackRecordingId] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const startTimeRef = useRef<number>(0);
-
-  const generateId = () => `rec-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const currentBlobRef = useRef<Blob | null>(null);
 
   const startRecording = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-      mediaRecorderRef.current = recorder;
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
+      currentBlobRef.current = null;
 
-      recorder.ondataavailable = (e) => {
+      mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
           chunksRef.current.push(e.data);
         }
       };
 
-      recorder.onstop = () => {
+      mediaRecorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        const blobUrl = URL.createObjectURL(blob);
-        const duration = Math.floor((Date.now() - startTimeRef.current) / 1000);
-
-        const newRecording: Recording = {
-          id: generateId(),
-          blobUrl,
-          timestamp: Date.now(),
-          duration,
-          name: `Enregistrement ${recordings.length + 1}`,
-        };
-
-        setRecordings(prev => {
-          const updated = [newRecording, ...prev].slice(0, 50);
-          saveRecordings(updated);
-          return updated;
-        });
-
-        setCurrentRecordingId(newRecording.id);
-        setIsRecording(false);
-        setRecordingDuration(0);
-
-        // Stop all tracks
+        currentBlobRef.current = blob;
         stream.getTracks().forEach(track => track.stop());
       };
 
-      recorder.start(1000); // Collect data every second
-      startTimeRef.current = Date.now();
+      mediaRecorder.start();
       setIsRecording(true);
-
-      // Update duration every second
+      setRecordingDuration(0);
       timerRef.current = window.setInterval(() => {
-        setRecordingDuration(Math.floor((Date.now() - startTimeRef.current) / 1000));
+        setRecordingDuration(d => d + 1);
       }, 1000);
-
     } catch (err) {
-      console.error('Microphone access denied:', err);
-      alert('Impossible d\'accéder au microphone. Veuillez autoriser l\'accès au microphone.');
-    }
-  }, [recordings.length]);
-
-  const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
-    }
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
+      console.error('Failed to start recording:', err);
+      alert('Impossible d\'accéder au microphone. Vérifiez les permissions.');
     }
   }, []);
 
-  const playRecording = useCallback((rec: Recording) => {
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      setIsRecording(false);
+
+      // Create recording after a short delay to ensure blob is ready
+      setTimeout(() => {
+        const blob = currentBlobRef.current;
+        if (blob) {
+          const newRecording: Recording = {
+            id: `rec-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            name: `Enregistrement ${recordings.length + 1}`,
+            blob,
+            duration: recordingDuration,
+            timestamp: Date.now(),
+          };
+
+          setRecordings(prev => {
+            const updated = [...prev, newRecording];
+            // Save without blob to localStorage
+            const storable = updated.map(r => ({ ...r, blob: undefined }));
+            try {
+              localStorage.setItem(getRecordingsKey(), JSON.stringify(storable));
+            } catch { /* ignore */ }
+            return updated;
+          });
+        }
+      }, 100);
+    }
+  }, [isRecording, recordingDuration, recordings.length]);
+
+  const playRecording = useCallback((recording: Recording) => {
+    if (!recording.blob) {
+      alert('Cet enregistrement n\'est plus disponible. Les blobs audio ne sont pas persistés entre les sessions.');
+      return;
+    }
+
     if (audioRef.current) {
       audioRef.current.pause();
     }
-    const audio = new Audio(rec.blobUrl);
+
+    const url = URL.createObjectURL(recording.blob);
+    const audio = new Audio(url);
     audioRef.current = audio;
-    setPlaybackRecordingId(rec.id);
-    audio.onended = () => setPlaybackRecordingId(null);
+
+    audio.onplay = () => setPlaybackRecordingId(recording.id);
+    audio.onended = () => {
+      setPlaybackRecordingId(null);
+      URL.revokeObjectURL(url);
+    };
+    audio.onerror = () => {
+      setPlaybackRecordingId(null);
+      URL.revokeObjectURL(url);
+    };
+
     audio.play();
   }, []);
 
@@ -130,41 +144,47 @@ export function useAudioRecorder() {
   const deleteRecording = useCallback((id: string) => {
     setRecordings(prev => {
       const updated = prev.filter(r => r.id !== id);
-      saveRecordings(updated);
+      const storable = updated.map(r => ({ ...r, blob: undefined }));
+      try {
+        localStorage.setItem(getRecordingsKey(), JSON.stringify(storable));
+      } catch { /* ignore */ }
       return updated;
     });
-    if (currentRecordingId === id) setCurrentRecordingId(null);
-    if (playbackRecordingId === id) stopPlayback();
-  }, [currentRecordingId, playbackRecordingId, stopPlayback]);
+    if (playbackRecordingId === id) {
+      stopPlayback();
+    }
+  }, [playbackRecordingId, stopPlayback]);
 
   const renameRecording = useCallback((id: string, name: string) => {
     setRecordings(prev => {
       const updated = prev.map(r => r.id === id ? { ...r, name } : r);
-      saveRecordings(updated);
+      const storable = updated.map(r => ({ ...r, blob: undefined }));
+      try {
+        localStorage.setItem(getRecordingsKey(), JSON.stringify(storable));
+      } catch { /* ignore */ }
       return updated;
     });
   }, []);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-      if (audioRef.current) audioRef.current.pause();
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      if (mediaRecorderRef.current) {
+        mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      }
     };
   }, []);
 
-  const formatDuration = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
   return {
     isRecording,
-    recordings,
-    currentRecordingId,
-    playbackRecordingId,
     recordingDuration,
+    recordings,
+    playbackRecordingId,
     startRecording,
     stopRecording,
     playRecording,

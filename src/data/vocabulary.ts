@@ -1,72 +1,71 @@
-export interface VocabularyEntry {
+export interface VocabularyTerm {
   id: string;
-  word: string;
+  term: string;
   definition: string;
-  partOfSpeech: string;
-  example: string;
-  category: 'figures-style' | 'classes-mots' | 'termes-analyse';
+  category: 'figures-de-style' | 'classes-de-mots' | 'termes-d-analyse';
+  example?: string;
 }
 
-export const vocabularyList: VocabularyEntry[] = [
+export const vocabularyTerms: VocabularyTerm[] = [
   // Figures de style
-  { id: 'v1', word: 'Métaphore', definition: 'Transfert de sens d\'un mot à un autre par comparaison implicite, sans mot de comparaison.', partOfSpeech: 'nom féminin', example: '"Son regard est une arme" — la comparaison sans "comme"', category: 'figures-style' },
-  { id: 'v2', word: 'Comparaison', definition: 'Rapprochement de deux éléments через un mot de comparaison (comme, tel, pareils à).', partOfSpeech: 'nom féminin', example: '"Sage comme une image"', category: 'figures-style' },
-  { id: 'v3', word: 'Personnification', definition: 'Figure qui attribue des caractéristiques humaines à un animal, une chose ou une abstraction.', partOfSpeech: 'nom féminin', example: '"La nuit s\'étend sur la ville"', category: 'figures-style' },
-  { id: 'v4', word: 'Métonymie', definition: 'Remplacement d\'un mot par un autre qui lui est logiquement lié (contenant pour contenu, cause pour effet).', partOfSpeech: 'nom féminin', example: '"Boire un verre" (le contenu pour le contenant)', category: 'figures-style' },
-  { id: 'v5', word: 'Synecdoque', definition: 'Figure consistant à prendre la partie pour le tout ou le tout pour la partie.', partOfSpeech: 'nom féminin', example: '"Les voiles" pour "les bateaux"', category: 'figures-style' },
-  { id: 'v6', word: 'Hypotypose', definition: 'Figure qui rend une scène de manière si vivante qu\'elle semble se dérouler sous nos yeux.', partOfSpeech: 'nom féminin', example: '"Je voyais le couteau s\'enfoncer dans sa chair"', category: 'figures-style' },
-  { id: 'v7', word: 'Antithèse', definition: 'Opposition de deux termes ou idées contrastés dans un même vers/phrase.', partOfSpeech: 'nom féminin', example: '"Grandir et mourir", "lumière et ténèbres"', category: 'figures-style' },
-  { id: 'v8', word: 'Paradoxe', definition: 'Assertion qui semble absurde mais qui révèle une vérité profonde.', partOfSpeech: 'nom masculin', example: '"Il faut traverser la nuit pour voir l\'aurore"', category: 'figures-style' },
-  { id: 'v9', word: 'Oxymore', definition: 'Association de deux termes contradictoires qui créent un effet de sens.', partOfSpeech: 'nom masculin', example: '"Un silence bruyant", "une obscure clarté"', category: 'figures-style' },
-  { id: 'v10', word: 'Euphémisme', definition: 'Atténuation d\'une idée dure ou unpleasant par un terme plus doux.', partOfSpeech: 'nom masculin', example: '"Il s\'est éteint" pour "il est mort"', category: 'figures-style' },
-  { id: 'v11', word: 'Hyperbole', definition: 'Exagération outrancière pour renforcer une idée ou une émotion.', partOfSpeech: 'nom féminin', example: '"Je t\'attends depuis mille ans"', category: 'figures-style' },
-  { id: 'v12', word: 'Litote', definition: 'Figure qui dit moins pour suggérer plus, par understatement.', partOfSpeech: 'nom féminin', example: '"Il n\'est paslaid" pour "il est beau"', category: 'figures-style' },
-  { id: 'v13', word: 'Cliché', definition: 'Expression utilisée à force d\'être répétée, qui perd son originalité.', partOfSpeech: 'nom masculin', example: '"Avoir un cœur de pierre"', category: 'figures-style' },
-  { id: 'v14', word: 'Répétition', definition: 'Reprise d\'un mot ou d\'une expression pour insister ou créer un rythme.', partOfSpeech: 'nom féminin', example: '"Ah! le vent, le vent, le vent!"', category: 'figures-style' },
-  { id: 'v15', word: 'Anaphore', definition: 'Répétition d\'un mot ou groupe de mots en début de vers ou phrases consécutives.', partOfSpeech: 'nom féminin', example: '"Je suis..., je suis..., je suis..."', category: 'figures-style' },
-  { id: 'v16', word: 'Énumération', definition: 'Suite de mots ou expressions détaillant une série.', partOfSpeech: 'nom féminin', example: '"Fruits, légumes, fromages, viandes"', category: 'figures-style' },
-  { id: 'v17', word: 'Gradation', definition: 'Suite de termes allant crescendo ou decrescendo en intensité.', partOfSpeech: 'nom féminin', example: '"Je suis triste, meurtri, brisé"', category: 'figures-style' },
-  { id: 'v18', word: 'Allitération', definition: 'Répétition d\'une même consonne pour créer un effet sonore.', partOfSpeech: 'nom féminin', example: '"Les sanglots longs des violons"', category: 'figures-style' },
-  { id: 'v19', word: 'Assonance', definition: 'Répétition d\'une même voyelle pour créer une harmonie sonore.', partOfSpeech: 'nom féminin', example: '"Le vent qui gémit, l\'amour qui pleure"', category: 'figures-style' },
-  { id: 'v20', word: 'Chiasme', definition: 'Disposition symétrique inversée de deux éléments.', partOfSpeech: 'nom masculin', example: '"Les mauvais choix font les bonnes fin" (A-B-B-A)', category: 'figures-style' },
+  { id: 'vocab-1', term: 'La métaphore', definition: 'Figure de style qui consiste à remplacer un mot par un autre mot ou expression, sans outil de comparaison, sur la base d\'une ressemblance ou d\'une analogie.', category: 'figures-de-style', example: 'Cette faucheuse s\'appelle la mort. (Victor Hugo)' },
+  { id: 'vocab-2', term: 'La comparaison', definition: 'Figure de style qui rapproche deux éléments pour souligner leurs points communs, à l\'aide d\'un outil de comparaison (comme, tel, semblable à, etc.).', category: 'figures-de-style', example: 'Il est fort comme un lion.' },
+  { id: 'vocab-3', term: 'La personnification', definition: 'Figure de style qui attribue des caractéristiques humaines à des objets inanimés, des animaux ou des idées abstraites.', category: 'figures-de-style', example: 'Le vent murmure des secrets aux arbres.' },
+  { id: 'vocab-4', term: 'L\'allégorie', definition: 'Représentation concrète d\'une idée abstraite par une image, un personnage ou un objet.', category: 'figures-de-style', example: 'La Faucheuse représente la mort.' },
+  { id: 'vocab-5', term: 'L\'oxymore', definition: 'Figure de style qui réunit deux termes contradictoires dans une même expression.', category: 'figures-de-style', example: 'Une obscure clarté, un silence assourdissant.' },
+  { id: 'vocab-6', term: 'L\'antithèse', definition: 'Figure de style qui oppose deux mots ou groupes de mots dans une phrase pour créer un contraste fort.', category: 'figures-de-style', example: 'Je vis, je meurs ; je brûle et je me noie.' },
+  { id: 'vocab-7', term: 'L\'hyperbole', definition: 'Figure de style qui exagère l\'expression d\'une idée pour la rendre plus frappante.', category: 'figures-de-style', example: 'Je meurs de soif, je meurs de faim.' },
+  { id: 'vocab-8', term: 'La litote', definition: 'Figure de style qui consiste à dire moins pour suggérer davantage.', category: 'figures-de-style', example: 'Ce n\'est pas mauvais (pour dire que c\'est très bon).' },
+  { id: 'vocab-9', term: 'L\'euphémisme', definition: 'Figure de style qui adoucit une expression jugée trop brutale ou désagréable.', category: 'figures-de-style', example: 'Il nous a quittés (pour dire il est mort).' },
+  { id: 'vocab-10', term: 'L\'ironie', definition: 'Figure de style par laquelle on dit le contraire de ce que l\'on pense, souvent sur un ton moqueur.', category: 'figures-de-style', example: 'Quel temps magnifique ! (sous une pluie battante).' },
+  { id: 'vocab-11', term: 'La métonymie', definition: 'Figure de style qui remplace un mot par un autre mot lié par une relation de contiguïté (cause, effet, contenant, contenu, etc.).', category: 'figures-de-style', example: 'Boire un verre (le contenant pour le contenu).' },
+  { id: 'vocab-12', term: 'La synecdoque', definition: 'Figure de style qui prend la partie pour le tout, ou le tout pour la partie.', category: 'figures-de-style', example: 'Les voiles à l\'horizon (les voiles pour les bateaux).' },
+  { id: 'vocab-13', term: 'Le chiasme', definition: 'Figure de style qui organise les termes d\'une phrase selon une structure croisée (ABBA).', category: 'figures-de-style', example: 'Il faut manger pour vivre et non pas vivre pour manger.' },
+  { id: 'vocab-14', term: 'L\'anaphore', definition: 'Figure de style qui consiste à répéter un mot ou groupe de mots en début de phrase ou de vers.', category: 'figures-de-style', example: 'Paris ! Paris ! Paris !' },
+  { id: 'vocab-15', term: 'L\'ellipse', definition: 'Figure de style qui supprime un ou plusieurs mots facilement compréhensibles par le contexte.', category: 'figures-de-style', example: 'Il a pris son sac, elle, son parapluie.' },
+  { id: 'vocab-16', term: 'L\'assonance', definition: 'Figure de style qui consiste en la répétition d\'une voyelle à la fin de plusieurs mots.', category: 'figures-de-style', example: 'L\'eau coule, la vie s\'écoule.' },
+  { id: 'vocab-17', term: 'L\'allitération', definition: 'Figure de style qui consiste en la répétition d\'une consonne dans une phrase ou un vers.', category: 'figures-de-style', example: 'Pour qui sont ces serpents qui sifflent sur vos têtes ? (Racine)' },
+  { id: 'vocab-18', term: 'La gradation', definition: 'Figure de style qui dispose les termes selon une intensité croissante ou décroissante.', category: 'figures-de-style', example: 'Je meurs, je suis mort, je suis enterré.' },
+  { id: 'vocab-19', term: 'L\'apostrophe', definition: 'Figure de style par laquelle l\'auteur s\'adresse directement à quelqu\'un ou quelque chose.', category: 'figures-de-style', example: 'Ô temps, suspends ton vol !' },
+  { id: 'vocab-20', term: 'Le parallélisme', definition: 'Figure de style qui établit une symétrie entre deux éléments d\'une phrase.', category: 'figures-de-style', example: 'L\'un riche, l\'autre pauvre ; l\'un heureux, l\'autre triste.' },
 
   // Classes de mots
-  { id: 'v21', word: 'Article défini', definition: 'Le, la, les, l\' — indique quelque chose de spécifique.', partOfSpeech: 'déterminant', example: '"Le chat noir"', category: 'classes-mots' },
-  { id: 'v22', word: 'Article indéfini', definition: 'Un, une, des — indique quelque chose de non identifié.', partOfSpeech: 'déterminant', example: '"Un oiseau chante"', category: 'classes-mots' },
-  { id: 'v23', word: 'Pronom personnel', definition: 'Mot qui remplace un nom (je, tu, il, nous, vous, ils...).', partOfSpeech: 'pronom', example: '"Je suis content"', category: 'classes-mots' },
-  { id: 'v24', word: 'Adjectif possessif', definition: 'Déterminant qui indique la possession (mon, ton, son, notre...).', partOfSpeech: 'déterminant', example: '"Mon livre, ta maison"', category: 'classes-mots' },
-  { id: 'v25', word: 'Adjectif démonstratif', definition: 'Déterminant qui montre (ce, cette, ces).', partOfSpeech: 'déterminant', example: '"Ce livre, cette fleur"', category: 'classes-mots' },
-  { id: 'v26', word: 'Adjectif numéral', definition: 'Mot qui indique une quantité ou un ordre (un, deux, premier...).', partOfSpeech: 'déterminant', example: '"Trois enfants, le premier"', category: 'classes-mots' },
-  { id: 'v27', word: 'Adverbe', definition: 'Mot invariable qui modifie un verbe, un adjectif ou un autre adverbe.', partOfSpeech: 'invariable', example: '"Très beau, marcher lentement"', category: 'classes-mots' },
-  { id: 'v28', word: 'Préposition', definition: 'Mot invariable qui établit un rapport entre deux éléments.', partOfSpeech: 'invariable', example: '"à, de, pour, avec, sans"', category: 'classes-mots' },
-  { id: 'v29', word: 'Conjonction de coordination', definition: 'Mot invariable qui relie deux éléments de même fonction.', partOfSpeech: 'invariable', example: '"mais, ou, et, donc, or, ni, car"', category: 'classes-mots' },
-  { id: 'v30', word: 'Interjection', definition: 'Mot exclamatif exprimant une émotion ou un ordre.', partOfSpeech: 'invariable', example: '"Ah! Oh! Hélas! Vive la France!"', category: 'classes-mots' },
+  { id: 'vocab-21', term: 'Le nom', definition: 'Mot qui désigne une personne, un animal, une chose ou une idée. Il peut être commun ou propre.', category: 'classes-de-mots', example: 'La table, Paris, le bonheur.' },
+  { id: 'vocab-22', term: 'Le verbe', definition: 'Mot qui exprime une action, un état ou un devenir. Il se conjugue selon le temps, le mode, la personne et le nombre.', category: 'classes-de-mots', example: 'Chanter, être, devenir.' },
+  { id: 'vocab-23', term: 'L\'adjectif', definition: 'Mot qui se joint au nom pour le qualifier ou le déterminer. Il s\'accorde en genre et en nombre.', category: 'classes-de-mots', example: 'Un beau jardin, une grande maison.' },
+  { id: 'vocab-24', term: 'L\'adverbe', definition: 'Mot invariable qui modifie le sens d\'un verbe, d\'un adjectif ou d\'un autre adverbe.', category: 'classes-de-mots', example: 'Il court vite, très grand, assez bien.' },
+  { id: 'vocab-25', term: 'Le pronom', definition: 'Mot qui remplace un nom ou un groupe nominal. Il existe différentes sortes : personnels, relatifs, démonstratifs, possessifs, etc.', category: 'classes-de-mots', example: 'Il, qui, celui, le mien.' },
+  { id: 'vocab-26', term: 'La préposition', definition: 'Mot invariable qui introduit un complément.', category: 'classes-de-mots', example: 'À, de, dans, pour, avec, sur.' },
+  { id: 'vocab-27', term: 'La conjonction', definition: 'Mot invariable qui sert à lier des mots ou des propositions.', category: 'classes-de-mots', example: 'Et, ou, mais, car, parce que, lorsque.' },
+  { id: 'vocab-28', term: 'L\'article', definition: 'Déterminant qui introduit un nom. Il peut être défini (le, la, les) ou indéfini (un, une, des).', category: 'classes-de-mots', example: 'Le chat, une pomme, des fleurs.' },
+  { id: 'vocab-29', term: 'Le déterminant', definition: 'Mot qui précède le nom et indique son genre, son nombre et son degré de détermination.', category: 'classes-de-mots', example: 'Ce livre, ma maison, trois jours.' },
+  { id: 'vocab-30', term: 'L\'interjection', definition: 'Mot invariable qui exprime une émotion, un sentiment ou un bruit.', category: 'classes-de-mots', example: 'Ah ! Oh ! Aïe ! Pouf !' },
 
   // Termes d'analyse
-  { id: 'v31', word: 'Thème', definition: 'Sujet principal d\'un texte, ce dont il parle.', partOfSpeech: 'nom masculin', example: '"Le thème de la mort dans ce poème"', category: 'termes-analyse' },
-  { id: 'v32', word: 'Variations', definition: 'Évolution du thème à travers le texte ou lauteur.', partOfSpeech: 'nom féminin', example: '"Les variations du thème de l\'amour"', category: 'termes-analyse' },
-  { id: 'v33', word: 'Tonalité', definition: 'Registre émotionnel dominant du texte (lyrique, ironique, tragiques...).', partOfSpeech: 'nom féminin', example: '"Tonalité élégiaque, tonoalité comique"', category: 'termes-analyse' },
-  { id: 'v34', word: 'Registre', definition: 'Type de texte répondant à une intention communicationnelle (lyrique, narratif, argumentatif...).', partOfSpeech: 'nom masculin', example: '"Registre lyrique, registre satirique"', category: 'termes-analyse' },
-  { id: 'v35', word: 'Champ lexical', definition: 'Ensemble de mots liés à un même domaine de sens.', partOfSpeech: 'nom masculin', example: '"Champ lexical de la mer: vagues, rivage, naufrage..."', category: 'termes-analyse' },
-  { id: 'v36', word: 'Champ sémantique', definition: 'Ensemble des meanings possibles d\'un mot dans son contexte.', partOfSpeech: 'nom masculin', example: '"Le champ sémantique de "forêt""', category: 'termes-analyse' },
-  { id: 'v37', word: 'Sémantique', definition: 'Étude du sens des mots et des phrases.', partOfSpeech: 'nom féminin', example: 'L\'analyse sémantique d\'un terme', category: 'termes-analyse' },
-  { id: 'v38', word: 'Vers', definition: 'Ligne de texte dans un poème, avec ou sans rime.', partOfSpeech: 'nom masculin', example: '"Ce poème compte 14 vers"', category: 'termes-analyse' },
-  { id: 'v39', word: 'Strophe', definition: 'Groupe de vers séparé par un espace blanc.', partOfSpeech: 'nom féminin', example: '"Les quatre strophes du sonnet"', category: 'termes-analyse' },
-  { id: 'v40', word: 'Rime', definition: 'Identité sonore entre la fin de deux vers.', partOfSpeech: 'nom féminin', example: '"Rime embrassée: ABBA"', category: 'termes-analyse' },
-  { id: 'v41', word: 'Prosodie', definition: 'Étude de la versification: rythme, longueur des syllabes, accents.', partOfSpeech: 'nom féminin', example: 'La prosodie du vers alexandrin', category: 'termes-analyse' },
-  { id: 'v42', word: 'Prosaïque', definition: 'Qui concerne la prose ou qui est banal, terre-à-terre.', partOfSpeech: 'adjectif', example: '"Un ton prosaïque"', category: 'termes-analyse' },
-  { id: 'v43', word: 'Élocution', definition: 'Manière de sexprimer à l\'oral, clarté et articulation.', partOfSpeech: 'nom féminin', example: '"Élocution parfaite"', category: 'termes-analyse' },
-  { id: 'v44', word: 'Rhétorique', definition: 'Art de bien parler et de persuader.', partOfSpeech: 'nom féminin', example: 'La rhétorique de ce discours', category: 'termes-analyse' },
-  { id: 'v45', word: 'Injonction', definition: 'Ordre ou consigne donné au lecteur ou auditeur.', partOfSpeech: 'nom féminin', example: '"Écoute, regarde, comprends"', category: 'termes-analyse' },
-  { id: 'v46', word: 'Apostrophe', definition: 'Interpellation directe d\'une personne ou d\'une chose.', partOfSpeech: 'nom féminin', example: '"Ô temps, suspends ton vol!"', category: 'termes-analyse' },
-  { id: 'v47', word: 'Interrogation oratoire', definition: 'Question rhétorique qui ne demande pas de réponse.', partOfSpeech: 'locution', example: '"Qui ne pleurerait devant cette misère?"', category: 'termes-analyse' },
-  { id: 'v48', word: 'Exclamation', definition: 'Phrase qui exprime une émotion vive, terminée par !.', partOfSpeech: 'nom féminin', example: '"Quel malheur!"', category: 'termes-analyse' },
-  { id: 'v49', word: 'Hypothese', definition: 'Supposition présentée comme base de raisonnement.', partOfSpeech: 'nom féminin', example: '"Si tu venais demain..."', category: 'termes-analyse' },
-  { id: 'v50', word: 'Polysémie', definition: 'Propriété d\'un mot d\'avoir plusieurs sens.', partOfSpeech: 'nom féminin', example: '"La "feuille" de papier ou d\'arbre"', category: 'termes-analyse' },
+  { id: 'vocab-31', term: 'L\'alexandrin', definition: 'Vers de douze syllabes, très utilisé dans la poésie française classique.', category: 'termes-d-analyse', example: 'Et qui detache ainsi des grands fonds de l\'abîme. (Racine)' },
+  { id: 'vocab-32', term: 'Le décasyllabe', definition: 'Vers de dix syllabes.', category: 'termes-d-analyse', example: 'Maître Corbeau, sur un arbre perché. (La Fontaine)' },
+  { id: 'vocab-33', term: 'L\'octosyllabe', definition: 'Vers de huit syllabes.', category: 'termes-d-analyse', example: 'Le lac aux eaux dormantes. (Lamartine)' },
+  { id: 'vocab-34', term: 'La rime', definition: 'Homophonie des sons finaux de deux ou plusieurs vers. Elle peut être plate (AABB), croisée (ABAB) ou embrassée (ABBA).', category: 'termes-d-analyse', example: 'amour / jour (rime plate).' },
+  { id: 'vocab-35', term: 'La diérèse', definition: 'Prononciation séparée de deux voyelles qui forment normalement une seule syllabe.', category: 'termes-d-analyse', example: 'Po-é-sie (4 syllabes au lieu de 3).' },
+  { id: 'vocab-36', term: 'La synérèse', definition: 'Prononciation en une seule syllabe de deux voyelles successives.', category: 'termes-d-analyse', example: 'Poi-sie (2 syllabes).' },
+  { id: 'vocab-37', term: 'L\'enjambement', definition: 'Décalage entre la fin du vers et la fin de la phrase : la phrase continue au vers suivant sans pause.', category: 'termes-d-analyse', example: 'Il regarde passer les trains / de nuit. (le complément continue au vers suivant)' },
+  { id: 'vocab-38', term: 'Le rejet', definition: 'Report d\'un mot ou d\'un groupe de mots en début de vers suivant, après un enjambement, ce qui le met en valeur.', category: 'termes-d-analyse', example: 'Il sortit / de la salle, furieux. (rejet de l\'expression)' },
+  { id: 'vocab-39', term: 'Le contre-rejet', definition: 'Report d\'un mot ou d\'un groupe de mots à la fin du vers précédent, créant un effet de suspens.', category: 'termes-d-analyse', example: 'De la salle / il sortit, furieux. (contre-rejet du verbe)' },
+  { id: 'vocab-40', term: 'La strophe', definition: 'Ensemble de vers formant une unité dans un poème. On distingue le quatrain (4 vers), le tercet (3 vers), etc.', category: 'termes-d-analyse', example: 'Un sonnet comprend deux quatrains et deux tercets.' },
+  { id: 'vocab-41', term: 'Le quatrain', definition: 'Strophe de quatre vers.', category: 'termes-d-analyse', example: 'Les deux premiers quatrains d\'un sonnet.' },
+  { id: 'vocab-42', term: 'Le tercet', definition: 'Strophe de trois vers.', category: 'termes-d-analyse', example: 'Les deux derniers tercets d\'un sonnet.' },
+  { id: 'vocab-43', term: 'Le sonnet', definition: 'Poème de 14 vers, généralement composé de deux quatrains et deux tercets.', category: 'termes-d-analyse', example: 'Les Sonnets de Baudelaire.' },
+  { id: 'vocab-44', term: 'La prose', definition: 'Texte écrit sans contraintes de versification ni de rimes.', category: 'termes-d-analyse', example: 'Un roman, un article de journal.' },
+  { id: 'vocab-45', term: 'Le vers libre', definition: 'Vers qui ne respecte pas les règles traditionnelles de la versification (nombre de syllabes, rimes).', category: 'termes-d-analyse', example: 'La poésie moderne de Verlaine ou Rimbaud.' },
+  { id: 'vocab-46', term: 'Le registre lyrique', definition: 'Registre qui exprime des sentiments personnels, souvent avec émotion et subjectivité.', category: 'termes-d-analyse', example: 'Les poèmes de Lamartine ou Hugo.' },
+  { id: 'vocab-47', term: 'Le registre épique', definition: 'Registre qui met en scène des actions héroïques, des combats, des exploits grandioses.', category: 'termes-d-analyse', example: 'La Chanson de Roland.' },
+  { id: 'vocab-48', term: 'Le registre tragique', definition: 'Registre qui évoque le destin, la fatalité, les conflits insolubles menant souvent à la mort.', category: 'termes-d-analyse', example: 'Les tragédies de Racine.' },
+  { id: 'vocab-49', term: 'Le registre comique', definition: 'Registre qui vise à faire rire par des situations, des personnages ou des procédés linguistiques.', category: 'termes-d-analyse', example: 'Les comédies de Molière.' },
+  { id: 'vocab-50', term: 'Le registre satirique', definition: 'Registre qui critique la société ou les mœurs par l\'ironie et la moquerie.', category: 'termes-d-analyse', example: 'Les Fables de La Fontaine.' },
 ];
 
-export const categoryLabels: Record<VocabularyEntry['category'], string> = {
-  'figures-style': 'Figures de style',
-  'classes-mots': 'Classes de mots',
-  'termes-analyse': 'Termes d\'analyse',
-};
+export const vocabularyCategories = [
+  { id: 'figures-de-style', name: 'Figures de style', count: 20 },
+  { id: 'classes-de-mots', name: 'Classes de mots', count: 10 },
+  { id: 'termes-d-analyse', name: 'Termes d\'analyse', count: 20 },
+];
