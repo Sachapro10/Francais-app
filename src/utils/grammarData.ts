@@ -10,6 +10,8 @@ export interface GrammarSentence {
   verbs: string[];
   propositions: PropositionDetail[];
   ruleExplanation?: string;
+  hint?: string;
+  difficulty?: 'Facile' | 'Intermédiaire' | 'Avancé';
   topicId?: string;
 }
 
@@ -87,6 +89,24 @@ export const EAF_GRAMMAR_TOPICS: EafGrammarTopic[] = [
         sentence: 'Le chat qui dort est gris.',
         answer: "« Le chat est gris » (principale) et « qui dort » (subordonnée relative, relative du sujet « chat »).",
         bareme: "1 pt principale / 1 pt relative."
+      },
+      {
+        question: "Repérez la principale et la subordonnée circonstancielle, puis précisez sa valeur.",
+        sentence: "Bien qu'il soit tard, les lecteurs continuent leur travail.",
+        answer: "« les lecteurs continuent leur travail » est la principale. « Bien qu'il soit tard » est une subordonnée circonstancielle de concession, introduite par « bien que » et construite au subjonctif.",
+        bareme: "1 pt découpage / 1 pt nature et valeur."
+      },
+      {
+        question: "Quelle est la nature de « que tu as choisie » et quel nom complète-t-elle ?",
+        sentence: "La route que tu as choisie traverse la forêt.",
+        answer: "« La route traverse la forêt » est la principale. « que tu as choisie » est une subordonnée relative introduite par le pronom relatif « que » ; elle complète le nom « route ».",
+        bareme: "1 pt nature / 1 pt antécédent."
+      },
+      {
+        question: "Distinguez les propositions coordonnées et juxtaposées.",
+        sentence: "Le vent tombe, la mer se calme et les bateaux repartent.",
+        answer: "« Le vent tombe » et « la mer se calme » sont juxtaposées par une virgule. « les bateaux repartent » est coordonnée à la précédente par « et ».",
+        bareme: "1 pt découpage / 1 pt relations."
       }
     ]
   },
@@ -481,6 +501,263 @@ export const GRAMMAR_SENTENCES: GrammarSentence[] = [
       { text: "qui veulent participer", type: "Subordonnée relative" }
     ],
     ruleExplanation: "'Qui' est un pronom relatif sujet du verbe 'veulent'.",
+    topicId: 'proposition'
+  },
+  {
+    id: 29,
+    rawText: "Je te prêterai ce livre si tu me le rends demain.",
+    bracketedText: "[Je te prêterai ce livre] Prop 1 [si tu me le rends demain] Prop 2",
+    verbs: ["prêterai", "rends"],
+    propositions: [
+      { text: "Je te prêterai ce livre", type: "Principale" },
+      { text: "si tu me le rends demain", type: "Subordonnée circonstancielle" }
+    ],
+    hint: "Repérez la conjonction qui introduit une condition.",
+    difficulty: "Facile",
+    ruleExplanation: "« Si » introduit une subordonnée circonstancielle de condition.",
+    topicId: 'proposition'
+  },
+  {
+    id: 30,
+    rawText: "La fille dont la mère travaille ici a gagné le concours.",
+    bracketedText: "[La fille [dont la mère travaille ici] Prop 2 a gagné le concours] Prop 1",
+    verbs: ["travaille", "a gagné"],
+    propositions: [
+      { text: "La fille a gagné le concours", type: "Principale" },
+      { text: "dont la mère travaille ici", type: "Subordonnée relative" }
+    ],
+    hint: "Le pronom relatif « dont » introduit une proposition qui complète un nom.",
+    difficulty: "Intermédiaire",
+    ruleExplanation: "« Dont » introduit une subordonnée relative qui complète l'antécédent « fille ».",
+    topicId: 'proposition'
+  },
+  {
+    id: 31,
+    rawText: "Je rentrerai avant que la nuit tombe.",
+    bracketedText: "[Je rentrerai] Prop 1 [avant que la nuit tombe] Prop 2",
+    verbs: ["rentrerai", "tombe"],
+    propositions: [
+      { text: "Je rentrerai", type: "Principale" },
+      { text: "avant que la nuit tombe", type: "Subordonnée circonstancielle" }
+    ],
+    hint: "Cherchez le groupe de mots qui indique quand l'action principale se déroule.",
+    difficulty: "Intermédiaire",
+    ruleExplanation: "« Avant que » introduit une subordonnée circonstancielle de temps.",
+    topicId: 'proposition'
+  },
+  {
+    id: 32,
+    rawText: "Il affirme que le train partira à l'heure.",
+    bracketedText: "[Il affirme] Prop 1 [que le train partira à l'heure] Prop 2",
+    verbs: ["affirme", "partira"],
+    propositions: [
+      { text: "Il affirme", type: "Principale" },
+      { text: "que le train partira à l'heure", type: "Subordonnée complétive" }
+    ],
+    hint: "Demandez-vous si la proposition introduite par « que » complète le verbe « affirme ».",
+    difficulty: "Facile",
+    ruleExplanation: "La complétive introduite par « que » complète le verbe « affirme ».",
+    topicId: 'proposition'
+  },
+  {
+    id: 33,
+    rawText: "Le soleil se couche ; les rues s'illuminent.",
+    bracketedText: "[Le soleil se couche] Prop 1 ; [les rues s'illuminent] Prop 2",
+    verbs: ["se couche", "s'illuminent"],
+    propositions: [
+      { text: "Le soleil se couche", type: "Juxtaposées" },
+      { text: "les rues s'illuminent", type: "Juxtaposées" }
+    ],
+    hint: "Observez le signe de ponctuation entre les deux verbes conjugués.",
+    difficulty: "Facile",
+    ruleExplanation: "Le point-virgule juxtapose les deux propositions sans mot de liaison.",
+    topicId: 'proposition'
+  },
+  {
+    id: 34,
+    rawText: "Elle sourit parce qu'elle connaît la réponse.",
+    bracketedText: "[Elle sourit] Prop 1 [parce qu'elle connaît la réponse] Prop 2",
+    verbs: ["sourit", "connaît"],
+    propositions: [
+      { text: "Elle sourit", type: "Principale" },
+      { text: "parce qu'elle connaît la réponse", type: "Subordonnée circonstancielle" }
+    ],
+    hint: "Le mot de liaison explique la raison pour laquelle elle sourit.",
+    difficulty: "Facile",
+    ruleExplanation: "« Parce que » introduit une subordonnée circonstancielle de cause.",
+    topicId: 'proposition'
+  },
+  {
+    id: 35,
+    rawText: "Nous attendrons jusqu'à ce que le médecin revienne.",
+    bracketedText: "[Nous attendrons] Prop 1 [jusqu'à ce que le médecin revienne] Prop 2",
+    verbs: ["attendrons", "revienne"],
+    propositions: [
+      { text: "Nous attendrons", type: "Principale" },
+      { text: "jusqu'à ce que le médecin revienne", type: "Subordonnée circonstancielle" }
+    ],
+    hint: "Repérez la locution qui fixe la limite dans le temps.",
+    difficulty: "Intermédiaire",
+    ruleExplanation: "« Jusqu'à ce que » introduit une subordonnée circonstancielle de temps.",
+    topicId: 'proposition'
+  },
+  {
+    id: 36,
+    rawText: "Le film que tu m'as conseillé m'a beaucoup plu.",
+    bracketedText: "[Le film [que tu m'as conseillé] Prop 2 m'a beaucoup plu] Prop 1",
+    verbs: ["as conseillé", "a plu"],
+    propositions: [
+      { text: "Le film m'a beaucoup plu", type: "Principale" },
+      { text: "que tu m'as conseillé", type: "Subordonnée relative" }
+    ],
+    hint: "La proposition introduite par « que » précise de quel film il s'agit.",
+    difficulty: "Intermédiaire",
+    ruleExplanation: "« Que » est un pronom relatif qui introduit une proposition complétant l'antécédent « film ».",
+    topicId: 'proposition'
+  },
+  {
+    id: 37,
+    rawText: "Il a tellement plu que la rivière a débordé.",
+    bracketedText: "[Il a tellement plu] Prop 1 [que la rivière a débordé] Prop 2",
+    verbs: ["a plu", "a débordé"],
+    propositions: [
+      { text: "Il a tellement plu", type: "Principale" },
+      { text: "que la rivière a débordé", type: "Subordonnée circonstancielle" }
+    ],
+    hint: "La structure « tellement… que » exprime le résultat d'une intensité.",
+    difficulty: "Avancé",
+    ruleExplanation: "La subordonnée introduite par « que » exprime la conséquence de la pluie abondante.",
+    topicId: 'proposition'
+  },
+  {
+    id: 38,
+    rawText: "Tu peux partir dès que tu auras terminé.",
+    bracketedText: "[Tu peux partir] Prop 1 [dès que tu auras terminé] Prop 2",
+    verbs: ["peux", "auras terminé"],
+    propositions: [
+      { text: "Tu peux partir", type: "Principale" },
+      { text: "dès que tu auras terminé", type: "Subordonnée circonstancielle" }
+    ],
+    hint: "La locution de liaison précise le moment où tu peux partir.",
+    difficulty: "Intermédiaire",
+    ruleExplanation: "« Dès que » introduit une subordonnée circonstancielle de temps.",
+    topicId: 'proposition'
+  },
+  {
+    id: 39,
+    rawText: "Il travaille pour que sa famille vive mieux.",
+    bracketedText: "[Il travaille] Prop 1 [pour que sa famille vive mieux] Prop 2",
+    verbs: ["travaille", "vive"],
+    propositions: [
+      { text: "Il travaille", type: "Principale" },
+      { text: "pour que sa famille vive mieux", type: "Subordonnée circonstancielle" }
+    ],
+    hint: "Demandez-vous dans quel but il travaille.",
+    difficulty: "Intermédiaire",
+    ruleExplanation: "« Pour que » introduit une subordonnée circonstancielle de but, construite au subjonctif.",
+    topicId: 'proposition'
+  },
+  {
+    id: 40,
+    rawText: "La nuit tombe et les voyageurs cherchent un abri, mais le guide reste calme.",
+    bracketedText: "[La nuit tombe] Prop 1 [les voyageurs cherchent un abri] Prop 2 [le guide reste calme] Prop 3",
+    verbs: ["tombe", "cherchent", "reste"],
+    propositions: [
+      { text: "La nuit tombe", type: "Principale" },
+      { text: "les voyageurs cherchent un abri", type: "Coordonnées" },
+      { text: "le guide reste calme", type: "Coordonnées" }
+    ],
+    hint: "Repérez les trois verbes conjugués et les deux conjonctions de coordination.",
+    difficulty: "Avancé",
+    ruleExplanation: "Les trois propositions sont coordonnées par « et » puis « mais ».",
+    topicId: 'proposition'
+  },
+  {
+    id: 41,
+    rawText: "Quoi qu'il arrive, nous respecterons notre promesse.",
+    bracketedText: "[Quoi qu'il arrive] Prop 2, [nous respecterons notre promesse] Prop 1",
+    verbs: ["arrive", "respecterons"],
+    propositions: [
+      { text: "nous respecterons notre promesse", type: "Principale" },
+      { text: "Quoi qu'il arrive", type: "Subordonnée circonstancielle" }
+    ],
+    hint: "L'expression en tête de phrase marque une opposition à toute éventualité.",
+    difficulty: "Avancé",
+    ruleExplanation: "« Quoi que » introduit une subordonnée circonstancielle de concession.",
+    topicId: 'proposition'
+  },
+  {
+    id: 42,
+    rawText: "Je me demande pourquoi il a refusé l'invitation.",
+    bracketedText: "[Je me demande] Prop 1 [pourquoi il a refusé l'invitation] Prop 2",
+    verbs: ["me demande", "a refusé"],
+    propositions: [
+      { text: "Je me demande", type: "Principale" },
+      { text: "pourquoi il a refusé l'invitation", type: "Subordonnée complétive" }
+    ],
+    hint: "La question indirecte complète le verbe « demande ».",
+    difficulty: "Avancé",
+    ruleExplanation: "La proposition interrogative indirecte « pourquoi il a refusé l'invitation » est une subordonnée complétive.",
+    topicId: 'proposition'
+  },
+  {
+    id: 43,
+    rawText: "L'auteur raconte une histoire dont le héros défie le roi et que personne n'oublie.",
+    bracketedText: "[L'auteur raconte une histoire [dont le héros défie le roi] Prop 2 et [que personne n'oublie] Prop 3] Prop 1",
+    verbs: ["raconte", "défie", "n'oublie"],
+    propositions: [
+      { text: "L'auteur raconte une histoire", type: "Principale" },
+      { text: "dont le héros défie le roi", type: "Subordonnée relative" },
+      { text: "que personne n'oublie", type: "Subordonnée relative" }
+    ],
+    hint: "Les deux propositions introduites par un pronom relatif complètent le même nom.",
+    difficulty: "Avancé",
+    ruleExplanation: "Les deux subordonnées relatives, introduites par « dont » et « que », complètent l'antécédent « histoire ».",
+    topicId: 'proposition'
+  },
+  {
+    id: 44,
+    rawText: "Même si tu as peur, avance ; je reste près de toi.",
+    bracketedText: "[Même si tu as peur] Prop 2, [avance] Prop 1 ; [je reste près de toi] Prop 3",
+    verbs: ["as", "avance", "reste"],
+    propositions: [
+      { text: "avance", type: "Principale" },
+      { text: "Même si tu as peur", type: "Subordonnée circonstancielle" },
+      { text: "je reste près de toi", type: "Juxtaposées" }
+    ],
+    hint: "Il y a une concession introduite par « même si » et une juxtaposition marquée par le point-virgule.",
+    difficulty: "Avancé",
+    ruleExplanation: "« Même si tu as peur » est une subordonnée circonstancielle de concession. « Je reste près de toi » est juxtaposée à la principale.",
+    topicId: 'proposition'
+  },
+  {
+    id: 45,
+    rawText: "L'élève que le professeur interroge sait qu'il doit répondre.",
+    bracketedText: "[L'élève [que le professeur interroge] Prop 2 sait [qu'il doit répondre] Prop 3] Prop 1",
+    verbs: ["interroge", "sait", "doit répondre"],
+    propositions: [
+      { text: "L'élève sait", type: "Principale" },
+      { text: "que le professeur interroge", type: "Subordonnée relative" },
+      { text: "qu'il doit répondre", type: "Subordonnée complétive" }
+    ],
+    hint: "Distinguez la relative qui précise « l'élève » de la complétive qui complète « sait ».",
+    difficulty: "Avancé",
+    ruleExplanation: "La première subordonnée est une relative qui complète « élève » ; la seconde est une complétive COD du verbe « sait ».",
+    topicId: 'proposition'
+  },
+  {
+    id: 46,
+    rawText: "Je suis heureux que vous soyez venus, car nous avons besoin d'aide.",
+    bracketedText: "[Je suis heureux] Prop 1 [que vous soyez venus] Prop 2, [nous avons besoin d'aide] Prop 3",
+    verbs: ["suis", "soyez venus", "avons"],
+    propositions: [
+      { text: "Je suis heureux", type: "Principale" },
+      { text: "que vous soyez venus", type: "Subordonnée complétive" },
+      { text: "nous avons besoin d'aide", type: "Coordonnées" }
+    ],
+    hint: "Repérez la complétive qui complète « heureux » et la coordination introduite par « car ».",
+    difficulty: "Avancé",
+    ruleExplanation: "« Que vous soyez venus » est une complétive liée à « heureux ». La proposition introduite par « car » est coordonnée et exprime la cause.",
     topicId: 'proposition'
   }
 ];

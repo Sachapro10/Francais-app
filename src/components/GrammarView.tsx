@@ -1,9 +1,8 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
-  BookOpen, ChevronDown, ChevronRight, Eraser,
-  Check, X, AlertCircle, Sparkles, MousePointer2,
-  GraduationCap, HelpCircle, FileText, Eye, EyeOff,
-  ChevronUp
+  BookOpen, ChevronDown, Eraser,
+  Check, X, Sparkles, MousePointer2, Lightbulb, Shuffle, RotateCcw,
+  GraduationCap, FileText, Eye, EyeOff, ChevronUp, Trophy
 } from 'lucide-react';
 import {
   GRAMMAR_SENTENCES, GrammarSentence,
@@ -14,6 +13,74 @@ import {
 interface PropHighlight {
   propIndex: number;
   wordIndices: number[];
+}
+
+interface PropositionProgress {
+  completedIds: number[];
+  errorIds: number[];
+  streak: number;
+  bestStreak: number;
+}
+
+const PROPOSITION_PROGRESS_KEY = 'grammar-proposition-progress-v1';
+
+function loadPropositionProgress(): PropositionProgress {
+  const emptyProgress: PropositionProgress = { completedIds: [], errorIds: [], streak: 0, bestStreak: 0 };
+  try {
+    const saved = localStorage.getItem(PROPOSITION_PROGRESS_KEY);
+    if (!saved) return emptyProgress;
+    const parsed = JSON.parse(saved) as Partial<PropositionProgress>;
+    return {
+      completedIds: Array.isArray(parsed.completedIds) ? parsed.completedIds.filter(Number.isInteger) : [],
+      errorIds: Array.isArray(parsed.errorIds) ? parsed.errorIds.filter(Number.isInteger) : [],
+      streak: Number.isInteger(parsed.streak) ? Math.max(0, parsed.streak!) : 0,
+      bestStreak: Number.isInteger(parsed.bestStreak) ? Math.max(0, parsed.bestStreak!) : 0,
+    };
+  } catch {
+    return emptyProgress;
+  }
+}
+
+function normalizeClause(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('fr')
+    .replace(/[’']/g, ' ')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+    .replace(/^(?:et|mais|or|ni|car|donc)\s+/, '');
+}
+
+function matchPropositions(
+  highlights: PropHighlight[],
+  words: string[],
+  sentence: GrammarSentence,
+): { propIndex: number; proposition: GrammarSentence['propositions'][number] }[] {
+  const usedPropositions = new Set<number>();
+  return highlights.flatMap(highlight => {
+    const selectedText = highlight.wordIndices
+      .slice()
+      .sort((a, b) => a - b)
+      .map(index => words[index] ?? '')
+      .join(' ');
+    const selectedClause = normalizeClause(selectedText);
+    const matchIndex = sentence.propositions.findIndex((proposition, index) =>
+      !usedPropositions.has(index) && normalizeClause(proposition.text) === selectedClause
+    );
+    if (!selectedClause || matchIndex === -1) return [];
+    usedPropositions.add(matchIndex);
+    return [{ propIndex: highlight.propIndex, proposition: sentence.propositions[matchIndex] }];
+  });
+}
+
+function shuffled<T>(items: T[]): T[] {
+  const result = [...items];
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [result[index], result[randomIndex]] = [result[randomIndex], result[index]];
+  }
+  return result;
 }
 
 type PropositionStep = 'highlighting' | 'select-principale' | 'classifying' | 'complete';
@@ -72,18 +139,21 @@ function PropositionExercise({ sentences }: { sentences: GrammarSentence[] }) {
   const [secondaryTypes, setSecondaryTypes] = useState<Record<number, string>>({});
   const [selectedPrincipaleIndex, setSelectedPrincipaleIndex] = useState<number | null>(null);
   const [showCorrige, setShowCorrige] = useState(false);
+  const [showHint, setShowHint] = useState(false);
+  const [progress, setProgress] = useState<PropositionProgress>(loadPropositionProgress);
+  const [sessionSentences, setSessionSentences] = useState(sentences);
 
   const isDraggingRef = useRef(false);
   const dragStartIdxRef = useRef<number | null>(null);
 
-  const totalPages = sentences.length;
-  const currentSentence = sentences[Math.min(currentPage - 1, totalPages - 1)];
+  const totalPages = sessionSentences.length;
+  const currentSentence = sessionSentences[Math.min(currentPage - 1, totalPages - 1)];
 
   const words = useMemo(() => {
-    return currentSentence.rawText.split(/\s+/).filter(w => w.length > 0);
+    return currentSentence?.rawText.split(/\s+/).filter(w => w.length > 0) ?? [];
   }, [currentSentence]);
 
-  useEffect(() => {
+  const resetQuestion = useCallback(() => {
     setHighlights([]);
     setActivePropIndex(0);
     setStep('highlighting');
@@ -92,7 +162,68 @@ function PropositionExercise({ sentences }: { sentences: GrammarSentence[] }) {
     setSecondaryTypes({});
     setSelectedPrincipaleIndex(null);
     setShowCorrige(false);
-  }, [currentPage]);
+    setShowHint(false);
+    isDraggingRef.current = false;
+    dragStartIdxRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    resetQuestion();
+  }, [currentPage, currentSentence?.id, resetQuestion]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(PROPOSITION_PROGRESS_KEY, JSON.stringify(progress));
+    } catch {
+      // Practice remains usable when browser storage is unavailable.
+    }
+  }, [progress]);
+
+  const recordMistake = () => {
+    if (!currentSentence) return;
+    setProgress(previous => ({
+      ...previous,
+      errorIds: previous.errorIds.includes(currentSentence.id)
+        ? previous.errorIds
+        : [...previous.errorIds, currentSentence.id],
+      streak: 0,
+    }));
+  };
+
+  const recordSuccess = () => {
+    if (!currentSentence) return;
+    setProgress(previous => {
+      const streak = previous.streak + 1;
+      return {
+        completedIds: previous.completedIds.includes(currentSentence.id)
+          ? previous.completedIds
+          : [...previous.completedIds, currentSentence.id],
+        errorIds: previous.errorIds.filter(id => id !== currentSentence.id),
+        streak,
+        bestStreak: Math.max(previous.bestStreak, streak),
+      };
+    });
+  };
+
+  const startAllSentences = () => {
+    setSessionSentences(sentences);
+    setCurrentPage(1);
+    resetQuestion();
+  };
+
+  const startReview = () => {
+    const errorsToReview = sentences.filter(sentence => progress.errorIds.includes(sentence.id));
+    if (!errorsToReview.length) return;
+    setSessionSentences(errorsToReview);
+    setCurrentPage(1);
+    resetQuestion();
+  };
+
+  const shuffleSession = () => {
+    setSessionSentences(shuffled(sessionSentences));
+    setCurrentPage(1);
+    resetQuestion();
+  };
 
   const toggleWord = useCallback((wordIdx: number) => {
     if (step !== 'highlighting') return;
@@ -115,14 +246,14 @@ function PropositionExercise({ sentences }: { sentences: GrammarSentence[] }) {
     });
   }, [activePropIndex, step]);
 
-  const handleMouseDown = (idx: number) => {
+  const handlePointerDown = (idx: number) => {
     if (step !== 'highlighting') return;
     isDraggingRef.current = true;
     dragStartIdxRef.current = idx;
     toggleWord(idx);
   };
 
-  const handleMouseEnter = (idx: number) => {
+  const handlePointerEnter = (idx: number) => {
     if (!isDraggingRef.current || step !== 'highlighting' || dragStartIdxRef.current === null) return;
     const start = Math.min(dragStartIdxRef.current, idx);
     const end = Math.max(dragStartIdxRef.current, idx);
@@ -145,9 +276,22 @@ function PropositionExercise({ sentences }: { sentences: GrammarSentence[] }) {
 
   useEffect(() => {
     const handler = () => { isDraggingRef.current = false; dragStartIdxRef.current = null; };
-    window.addEventListener('mouseup', handler);
-    return () => window.removeEventListener('mouseup', handler);
+    window.addEventListener('pointerup', handler);
+    return () => window.removeEventListener('pointerup', handler);
   }, []);
+
+  if (!currentSentence) {
+    return (
+      <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-8 text-center space-y-3">
+        <p className="text-slate-300">Aucune phrase à revoir pour le moment.</p>
+        <button onClick={startAllSentences} className="copper-action px-6 py-3 rounded-xl text-white font-bold">
+          Reprendre toutes les phrases
+        </button>
+      </div>
+    );
+  }
+
+  const matchedPropositions = matchPropositions(highlights, words, currentSentence);
 
   const getWordColor = (idx: number) => {
     const hl = highlights.find(h => h.wordIndices.includes(idx));
@@ -155,69 +299,78 @@ function PropositionExercise({ sentences }: { sentences: GrammarSentence[] }) {
   };
 
   const verifyHighlights = () => {
-    const sorted = [...highlights].sort((a, b) => a.wordIndices[0] - b.wordIndices[0]);
-    if (sorted.length !== currentSentence.propositions.length) {
+    if (matchedPropositions.length !== currentSentence.propositions.length) {
       setIsCorrect(false);
       setMessage(`Incorrect. Il y a ${currentSentence.propositions.length} propositions dans cette phrase.`);
+      recordMistake();
       return;
     }
-    const allMatched = sorted.every((hl, i) => {
-      const hlText = hl.wordIndices.map(idx => words[idx]).join(' ').toLowerCase().replace(/[.,;]/g, '');
-      const expText = currentSentence.propositions[i].text.toLowerCase().replace(/[.,;]/g, '');
-      return hlText.includes(expText) || expText.includes(hlText);
-    });
-    if (allMatched) {
-      setIsCorrect(true);
-      setMessage("Bravo ! Maintenant, identifiez la proposition principale.");
-      setStep('select-principale');
-    } else {
-      setIsCorrect(false);
-      setMessage("Le découpage n'est pas correct. Réessayez.");
-    }
+    setIsCorrect(true);
+    setMessage("Bravo ! Maintenant, identifiez la proposition principale.");
+    setStep('select-principale');
   };
 
   const verifyPrincipale = () => {
     if (selectedPrincipaleIndex === null) {
       setIsCorrect(false);
       setMessage("Sélectionnez la proposition principale.");
+      recordMistake();
       return;
     }
-    const sorted = [...highlights].sort((a, b) => a.wordIndices[0] - b.wordIndices[0]);
-    const principaleIdx = sorted.findIndex((_, i) => currentSentence.propositions[i].type === 'Principale');
-    if (principaleIdx === -1) {
-      setStep('classifying');
-      setIsCorrect(true);
-      setMessage("Parfait ! Classifiez les propositions restantes.");
-      return;
-    }
-    if (selectedPrincipaleIndex === sorted[principaleIdx].propIndex) {
+    const selectedProposition = matchedPropositions.find(match => match.propIndex === selectedPrincipaleIndex);
+    if (selectedProposition?.proposition.type === 'Principale') {
       setIsCorrect(true);
       setMessage("Parfait ! Classifiez les propositions restantes.");
       setStep('classifying');
     } else {
       setIsCorrect(false);
       setMessage("Ce n'est pas la proposition principale. Réessayez.");
+      recordMistake();
     }
   };
 
   const verifyClassification = () => {
-    const sorted = [...highlights].sort((a, b) => a.wordIndices[0] - b.wordIndices[0]);
-    const allCorrect = sorted.every((hl, i) => {
-      if (hl.propIndex === selectedPrincipaleIndex && currentSentence.propositions[i].type === 'Principale') return true;
-      return secondaryTypes[hl.propIndex] === currentSentence.propositions[i].type;
+    const allCorrect = matchedPropositions.every(match => {
+      if (match.propIndex === selectedPrincipaleIndex) return match.proposition.type === 'Principale';
+      return secondaryTypes[match.propIndex] === match.proposition.type;
     });
     if (allCorrect) {
       setIsCorrect(true);
       setMessage("Parfait ! Toutes les propositions sont correctement identifiées.");
       setStep('complete');
+      recordSuccess();
     } else {
       setIsCorrect(false);
       setMessage("Certaines classifications sont incorrectes.");
+      recordMistake();
     }
   };
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-col gap-4 rounded-2xl border border-white/5 bg-slate-800/40 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap gap-2">
+          <button onClick={startAllSentences} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-slate-200 hover:bg-white/5">
+            Toutes les phrases
+          </button>
+          <button
+            onClick={startReview}
+            disabled={progress.errorIds.length === 0}
+            className="rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-slate-200 hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            À revoir ({progress.errorIds.length})
+          </button>
+          <button onClick={shuffleSession} className="flex items-center gap-1.5 rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-slate-200 hover:bg-white/5">
+            <Shuffle size={13} /> Mélanger
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-slate-400">
+          <span><Trophy size={13} className="mr-1 inline text-amber-300" /> {progress.completedIds.length} réussies</span>
+          <span>Série : <strong className="text-amber-300">{progress.streak}</strong></span>
+          <span>Record : <strong className="text-amber-300">{progress.bestStreak}</strong></span>
+        </div>
+      </div>
+
       {/* Progress bar */}
       <div className="flex items-center gap-4 bg-slate-800/50 p-2 rounded-2xl border border-white/5">
         <div className="flex flex-col items-end px-2">
@@ -232,24 +385,55 @@ function PropositionExercise({ sentences }: { sentences: GrammarSentence[] }) {
       {/* Sentence box */}
       <div className="wood-panel p-8 sm:p-12 rounded-3xl border border-white/10 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-1 h-full bg-amber-500" />
-        <div className="flex items-center gap-2 mb-6 opacity-50">
-          <MousePointer2 size={14} className="text-amber-400" />
-          <span className="text-[10px] uppercase tracking-widest font-bold">
-            {step === 'highlighting' ? 'Surlignez les propositions' : 'Découpage validé'}
-          </span>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 opacity-70">
+            <MousePointer2 size={14} className="text-amber-400" />
+            <span className="text-[10px] uppercase tracking-widest font-bold">
+              {step === 'highlighting' ? 'Surlignez les propositions' : 'Découpage validé'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            {currentSentence.difficulty && (
+              <span className="rounded-full border border-white/10 bg-slate-900/70 px-2.5 py-1 text-[10px] font-bold text-slate-300">
+                {currentSentence.difficulty}
+              </span>
+            )}
+            <button
+              onClick={() => setShowHint(previous => !previous)}
+              className="flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-300 hover:bg-amber-500/20"
+              aria-expanded={showHint}
+            >
+              <Lightbulb size={13} /> {showHint ? 'Masquer l’indice' : 'Indice'}
+            </button>
+          </div>
         </div>
         <div className="flex flex-wrap gap-x-3 gap-y-4 text-2xl sm:text-3xl font-serif-literary leading-relaxed">
           {words.map((word, idx) => (
             <span
               key={idx}
-              onMouseDown={() => handleMouseDown(idx)}
-              onMouseEnter={() => handleMouseEnter(idx)}
+              role="button"
+              tabIndex={step === 'highlighting' ? 0 : -1}
+              aria-pressed={highlights.some(highlight => highlight.wordIndices.includes(idx))}
+              onPointerDown={() => handlePointerDown(idx)}
+              onPointerEnter={() => handlePointerEnter(idx)}
+              onKeyDown={event => {
+                if (step === 'highlighting' && (event.key === 'Enter' || event.key === ' ')) {
+                  event.preventDefault();
+                  toggleWord(idx);
+                }
+              }}
               className={`px-2 py-1 rounded-lg transition-all duration-200 cursor-pointer select-none border-b-2 border-transparent ${getWordColor(idx)} ${step !== 'highlighting' ? 'cursor-default' : 'hover:scale-110'}`}
             >
               {word}
             </span>
           ))}
         </div>
+        {showHint && (
+          <div className="mt-5 flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-sm text-amber-100">
+            <Lightbulb size={16} className="mt-0.5 shrink-0 text-amber-300" />
+            <p>{currentSentence.hint ?? "Repérez les verbes conjugués, puis observez les mots de liaison et la ponctuation."}</p>
+          </div>
+        )}
 
         {/* Feedback */}
         {message && (
@@ -390,7 +574,16 @@ function PropositionExercise({ sentences }: { sentences: GrammarSentence[] }) {
               </div>
             );
           })}
+          {currentSentence.ruleExplanation && (
+            <div className="rounded-2xl border border-indigo-500/20 bg-indigo-950/40 p-4 text-sm text-slate-300">
+              <span className="font-bold text-amber-300">À retenir : </span>
+              {currentSentence.ruleExplanation}
+            </div>
+          )}
           <div className="flex justify-center gap-3">
+            <button onClick={resetQuestion} className="flex items-center gap-2 rounded-2xl bg-slate-800 px-6 py-3 text-slate-300 hover:text-white">
+              <RotateCcw size={15} /> Recommencer
+            </button>
             <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
               className="px-8 py-3 rounded-2xl bg-slate-800 text-slate-400 hover:text-white disabled:opacity-20">
               Précédent
